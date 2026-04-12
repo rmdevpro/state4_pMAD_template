@@ -1,5 +1,5 @@
 """
-Context Broker Alerter — Instruction-driven webhook relay.
+pMAD Alerter — Instruction-driven webhook relay.
 
 Receives CloudEvents-format webhooks, searches an instructions table
 for the best matching instruction, formats via LLM using that instruction
@@ -56,7 +56,7 @@ _log = logging.getLogger("alerter")
 
 # ── App ────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Context Broker Alerter")
+app = FastAPI(title="pMAD Alerter")
 
 _config: dict = {}
 _pool: Optional[asyncpg.Pool] = None

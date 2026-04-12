@@ -1,5 +1,5 @@
 """
-Configuration management for the Context Broker.
+Configuration management for the pMAD.
 
 Two config files per REQ-002 §7 (TE Configuration Separation):
 - AE config (/config/config.yml): infrastructure settings (database, workers, locks)

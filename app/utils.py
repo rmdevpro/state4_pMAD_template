@@ -1,4 +1,4 @@
-"""Shared utilities for the Context Broker."""
+"""Shared utilities for the pMAD."""
 
 import hashlib
 

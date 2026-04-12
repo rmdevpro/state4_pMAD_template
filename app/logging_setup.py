@@ -1,5 +1,5 @@
 """
-Structured JSON logging for the Context Broker.
+Structured JSON logging for the pMAD.
 
 All logs go to stdout in JSON format (one object per line).
 Log level is configurable via config.yml.

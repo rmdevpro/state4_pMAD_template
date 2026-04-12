@@ -1,4 +1,4 @@
-# Context Broker — Docker Compose
+# pMAD Template — Docker Compose
 # State 4 MAD: standalone deployment, all dependencies configurable
 #
 # Usage:
@@ -41,7 +41,6 @@ services:
     volumes:
       - ./config:/config
       - ./data:/data
-      - ./packages:/app/packages:ro
       - ./config/runbooks:/config/runbooks:ro
     env_file:
       - ./config/credentials/.env

@@ -1,4 +1,4 @@
-# Context Broker — AE Configuration (Action Engine / Infrastructure)
+# pMAD Template — AE Configuration (Action Engine / Infrastructure)
 # Copy this file to config/config.yml and customize for your deployment.
 #
 # Cognitive settings (Imperator model, system prompt, persona) are in

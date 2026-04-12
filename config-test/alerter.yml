@@ -1,4 +1,4 @@
-# Context Broker Alerter — Test Stack Configuration
+# pMAD Alerter — Test Stack Configuration
 # Uses log channel only (no real SMTP/Slack/etc during tests)
 
 llm:

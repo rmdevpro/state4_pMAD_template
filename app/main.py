@@ -81,7 +81,7 @@ async def _postgres_retry_loop(application: FastAPI, config: dict) -> None:
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Manage application lifecycle: startup and shutdown."""
-    _log.info("Context Broker starting up")
+    _log.info("pMAD starting up")
 
     config = await async_load_config()
 
@@ -146,12 +146,12 @@ async def lifespan(application: FastAPI):
                 _postgres_retry_loop(application, config)
             )
 
-    _log.info("Context Broker startup complete")
+    _log.info("pMAD startup complete")
 
     yield
 
     # Shutdown
-    _log.info("Context Broker shutting down")
+    _log.info("pMAD shutting down")
 
     tasks_to_cancel = [t for t in [pg_retry_task] if t is not None]
     for t in tasks_to_cancel:
@@ -162,12 +162,12 @@ async def lifespan(application: FastAPI):
         except asyncio.CancelledError:
             pass
     await close_all_connections()
-    _log.info("Context Broker shutdown complete")
+    _log.info("pMAD shutdown complete")
 
 
 app = FastAPI(
-    title="Context Broker",
-    description="State 4 pMAD",
+    title="pMAD Template",
+    description="State 4 pMAD Template",
     version="1.0.0",
     lifespan=lifespan,
 )

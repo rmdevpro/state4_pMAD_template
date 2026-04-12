@@ -1,5 +1,5 @@
 """
-Database connection management for the Context Broker.
+Database connection management for the pMAD.
 
 Manages asyncpg (PostgreSQL) connection pool. PostgreSQL is the only
 external database — it handles data storage, vector search (pgvector),

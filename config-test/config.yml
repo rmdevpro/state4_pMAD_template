@@ -1,4 +1,4 @@
-# Context Broker — AE Configuration for Claude Test Stack
+# pMAD Template — AE Configuration for Claude Test Stack
 # NOMINAL inference models — fastest cloud providers
 
 log_level: INFO
