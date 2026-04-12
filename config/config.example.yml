@@ -1,0 +1,228 @@
+# Context Broker — AE Configuration (Action Engine / Infrastructure)
+# Copy this file to config/config.yml and customize for your deployment.
+#
+# Cognitive settings (Imperator model, system prompt, persona) are in
+# te.yml (the TE configuration).
+#
+# This file ships with LOCAL defaults (no API keys needed).
+# See comments for Nominal and Premium alternatives.
+
+# ============================================================
+# Logging
+# ============================================================
+
+log_level: INFO
+
+# ============================================================
+# Inference Providers (AE pipeline operations)
+# ============================================================
+# These LLMs are used by AE infrastructure pipelines, not by the Imperator.
+# The Imperator's model is configured in te.yml.
+
+# Summarization LLM — used for chunk summarization and archival consolidation
+#
+# Premium: Gemini 3.1 Pro — best quality summaries
+#   base_url: https://generativelanguage.googleapis.com/v1beta/openai
+#   model: gemini-3.1-pro
+#   api_key_env: GOOGLE_API_KEY
+#
+# Nominal: Gemini 2.5 Flash-Lite — cheapest, fast, good enough for compression
+#   base_url: https://generativelanguage.googleapis.com/v1beta/openai
+#   model: gemini-2.5-flash-lite
+#   api_key_env: GOOGLE_API_KEY
+#
+# Local (default): Ollama qwen2.5:7b — no API key needed
+summarization:
+  base_url: http://context-broker-ollama:11434/v1
+  model: qwen2.5:7b
+  # api_key_env: GOOGLE_API_KEY
+
+# Extraction LLM — used by Mem0 for memory extraction (requires JSON mode)
+#
+# Premium: o3-mini — best structured reasoning for knowledge extraction
+#   base_url: https://api.openai.com/v1
+#   model: o3-mini
+#   api_key_env: OPENAI_API_KEY
+#
+# Nominal: GPT-4.1-mini — reliable JSON mode, fast
+#   base_url: https://api.openai.com/v1
+#   model: gpt-4.1-mini
+#   api_key_env: OPENAI_API_KEY
+#
+# Local (default): Ollama qwen2.5:7b — no API key needed
+# NOTE: Gemini and Anthropic do NOT support JSON mode via OpenAI-compat endpoint.
+#       Use OpenAI, xAI, or Ollama for extraction.
+extraction:
+  base_url: http://context-broker-ollama:11434/v1
+  model: qwen2.5:7b
+  # api_key_env: OPENAI_API_KEY
+
+# Conversation embeddings — vector search and contextual embeddings
+# Uses MRL (Matryoshka) to request reduced dimensions from API.
+# embedding_dims MUST match the model's output or your requested MRL dimensions.
+#
+# Premium: OpenAI text-embedding-3-large (MRL → 1024 dims)
+#   base_url: https://api.openai.com/v1
+#   model: text-embedding-3-large
+#   embedding_dims: 1024
+#   api_key_env: OPENAI_API_KEY
+#
+# Nominal: Google gemini-embedding-2-preview (MRL → 1024 dims)
+#   base_url: https://generativelanguage.googleapis.com/v1beta/openai
+#   model: gemini-embedding-2-preview
+#   embedding_dims: 1024
+#   api_key_env: GOOGLE_API_KEY
+#
+# Local (default): Infinity nomic-ai/nomic-embed-text-v1.5 (768 dims, no MRL)
+embeddings:
+  base_url: http://context-broker-infinity:7997
+  model: nomic-ai/nomic-embed-text-v1.5
+  embedding_dims: 768
+  tiktoken_enabled: false
+  check_embedding_ctx_length: false
+
+# Reranker — used for hybrid search result refinement
+# Local Infinity works for all tiers — no reason to use cloud for reranking
+reranker:
+  provider: api
+  base_url: http://context-broker-infinity:7997
+  model: mixedbread-ai/mxbai-rerank-xsmall-v1
+  top_n: 10
+
+# Log embeddings — separate model for system log vectorization
+# Logs don't need high granularity — use small dims (256 for cloud, 768 for local)
+#
+# Premium: OpenAI text-embedding-3-large (MRL → 256 dims)
+#   base_url: https://api.openai.com/v1
+#   model: text-embedding-3-large
+#   embedding_dims: 256
+#   api_key_env: OPENAI_API_KEY
+#
+# Nominal: OpenAI text-embedding-3-small (MRL → 256 dims)
+#   base_url: https://api.openai.com/v1
+#   model: text-embedding-3-small
+#   embedding_dims: 256
+#   api_key_env: OPENAI_API_KEY
+#
+# Local (default): Ollama nomic-embed-text (768 dims, no MRL)
+# log_embeddings:
+#   base_url: http://context-broker-ollama:11434/v1
+#   model: nomic-embed-text
+#   embedding_dims: 768
+#   api_key_env: ""
+
+# ============================================================
+# Build Types
+# ============================================================
+
+build_types:
+
+  sliding-window:
+    max_context_tokens: auto
+    fallback_tokens: 8192
+    effective_utilization: 0.85     # D-10: models degrade past ~85% fill
+
+  tiered-summary:
+    tier1_pct: 0.08
+    tier2_pct: 0.20
+    tier3_pct: 0.72
+    max_context_tokens: auto
+    fallback_tokens: 8192
+    effective_utilization: 0.85
+    initial_lookback_multiplier: 3  # D-09: how far back to look for initial assembly
+
+  enriched:
+    tier1_pct: 0.05
+    tier2_pct: 0.15
+    tier3_pct: 0.50
+    knowledge_graph_pct: 0.15
+    semantic_retrieval_pct: 0.15
+    max_context_tokens: auto
+    fallback_tokens: 16000
+    effective_utilization: 0.85
+    initial_lookback_multiplier: 3
+
+# ============================================================
+# Package Source (build-time only)
+# ============================================================
+# These settings control where pip installs dependencies at container startup
+# (via entrypoint.sh). Changing these values after the container is running
+# has no effect — the container must be rebuilt.
+
+packages:
+  source: local
+  local_path: /app/packages
+  devpi_url: null
+  stategraph_packages:             # REQ-001 §10: packages installed at startup
+    - context-broker-ae
+    - context-broker-te
+
+# ============================================================
+# Tuning Parameters (AE pipeline behavior)
+# ============================================================
+
+tuning:
+  verbose_logging: false
+
+  # Context assembly
+  chunk_size: 20
+  consolidation_threshold: 3
+  consolidation_keep_recent: 2
+  summarization_temperature: 0.1
+  trigger_threshold_percent: 0.1
+
+  # Memory extraction
+  extraction_max_chars: 10000
+
+  # Memory confidence scoring
+  memory_half_lives:
+    ephemeral: 3
+    contextual: 14
+    factual: 60
+    historical: 365
+    default: 30
+
+  # Retrieval
+  tokens_per_message_estimate: 150
+  content_truncation_chars: 500
+  query_truncation_chars: 200
+
+  # Search
+  rrf_constant: 60
+  search_candidate_limit: 100
+  recency_decay_days: 90
+  recency_max_penalty: 0.2
+
+  # LLM client
+  llm_timeout_seconds: 1800          # timeout for LLM API calls (30 minutes — covers long summarization)
+
+  # Embedding pipeline performance
+  embedding_batch_size: 50           # texts per embedding API call (APIs accept arrays)
+  embedding_concurrency: 3           # concurrent batch requests to embedding provider
+
+  # LLM pipeline concurrency
+  llm_concurrency: 2                 # concurrent LLM calls for summarization/extraction
+
+  # Worker resilience
+  failure_backoff_threshold: 3       # consecutive failures before backoff
+  failure_backoff_seconds: 5         # seconds to wait during backoff
+
+  # Worker timeouts (stuck job watchdog)
+  embedding_timeout_seconds: 300     # max time for an embedding batch (5 min)
+  extraction_timeout_seconds: 600    # max time for extraction per conversation (10 min)
+  assembly_timeout_seconds: 600      # max time for context assembly per window (10 min)
+
+# ============================================================
+# Workers (infrastructure — DB-driven background processing)
+# ============================================================
+
+workers:
+  poll_interval_seconds: 2
+
+# ============================================================
+# Database (infrastructure — requires restart to change)
+# ============================================================
+
+database:
+  pool_min_size: 2
+  pool_max_size: 10

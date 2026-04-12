@@ -1,0 +1,21 @@
+# Context Broker — TE Configuration (Thought Engine)
+# Hot-reloadable — changes take effect without restart.
+#
+# This file is configured for NOMINAL operation (cloud providers).
+# For LOCAL operation (no API keys), see te.example.yml.
+
+imperator:
+  # Premium: Gemini 3.1 Pro — best reasoning available
+  # Nominal: Gemini 2.5 Pro — strong reasoning, lower cost
+  # Local:   Ollama qwen2.5:7b (see te.example.yml)
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-2.5-pro
+  api_key_env: GOOGLE_API_KEY
+
+  system_prompt: imperator_identity
+  build_type: tiered-summary
+  max_context_tokens: auto
+  participant_id: imperator
+  admin_tools: true
+  max_iterations: 5
+  temperature: 0.3

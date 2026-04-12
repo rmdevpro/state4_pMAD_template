@@ -1,0 +1,92 @@
+build_types:
+  enriched:
+    effective_utilization: 0.85
+    fallback_tokens: 16000
+    initial_lookback_multiplier: 3
+    knowledge_graph_pct: 0.15
+    max_context_tokens: auto
+    semantic_retrieval_pct: 0.15
+    tier1_pct: 0.05
+    tier2_pct: 0.15
+    tier3_pct: 0.5
+  sliding-window:
+    effective_utilization: 0.85
+    fallback_tokens: 8192
+    max_context_tokens: auto
+  tiered-summary:
+    effective_utilization: 0.85
+    fallback_tokens: 8192
+    initial_lookback_multiplier: 3
+    max_context_tokens: auto
+    tier1_pct: 0.08
+    tier2_pct: 0.2
+    tier3_pct: 0.72
+database:
+  pool_max_size: 20
+  pool_min_size: 2
+embeddings:
+  api_key_env: GOOGLE_API_KEY
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  check_embedding_ctx_length: false
+  embedding_dims: 1024
+  model: gemini-embedding-001
+  tiktoken_enabled: false
+extraction:
+  api_key_env: OPENAI_API_KEY
+  base_url: https://api.openai.com/v1
+  model: gpt-4.1-mini
+locks:
+  assembly_lock_ttl_seconds: 300
+  assembly_poll_interval_seconds: 2
+  assembly_wait_timeout_seconds: 50
+  extraction_lock_ttl_seconds: 180
+log_embeddings:
+  api_key_env: OPENAI_API_KEY
+  base_url: https://api.openai.com/v1
+  embedding_dims: 256
+  model: text-embedding-3-small
+log_level: INFO
+packages:
+  devpi_url: null
+  local_path: /app/packages
+  source: local
+  stategraph_packages:
+  - context-broker-ae
+  - context-broker-te
+reranker:
+  base_url: http://context-broker-infinity:7997
+  model: mixedbread-ai/mxbai-rerank-xsmall-v1
+  provider: api
+  top_n: 10
+summarization:
+  api_key_env: GOOGLE_API_KEY
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-2.5-flash-lite
+tuning:
+  chunk_size: 20
+  consolidation_keep_recent: 2
+  consolidation_threshold: 3
+  content_truncation_chars: 500
+  embedding_batch_size: 50
+  embedding_concurrency: 3
+  extraction_max_chars: 10000
+  llm_concurrency: 2
+  memory_half_lives:
+    contextual: 14
+    default: 30
+    ephemeral: 3
+    factual: 60
+    historical: 365
+  query_truncation_chars: 200
+  recency_decay_days: 90
+  recency_max_penalty: 0.2
+  rrf_constant: 60
+  search_candidate_limit: 100
+  summarization_temperature: 0.1
+  tokens_per_message_estimate: 150
+  trigger_threshold_percent: 0.1
+  verbose_logging: true
+workers:
+  dead_letter_sweep_interval_seconds: 60
+  max_retries: 3
+  poll_interval_seconds: 5

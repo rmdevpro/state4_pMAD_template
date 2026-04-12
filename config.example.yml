@@ -1,0 +1,42 @@
+# State 4 pMAD — AE Configuration (Action Engine / Infrastructure)
+# Copy this file to config/config.yml and customize for your deployment.
+#
+# Cognitive settings (Imperator model, system prompt, persona) are in
+# te.yml (the TE configuration).
+
+# ============================================================
+# Logging
+# ============================================================
+
+log_level: INFO
+
+# ============================================================
+# Package Source (build-time only)
+# ============================================================
+# These settings control where pip installs dependencies at container startup
+# (via entrypoint.sh). Changing these values after the container is running
+# has no effect — the container must be rebuilt.
+
+packages:
+  source: local
+  local_path: /app/packages
+  devpi_url: null
+  stategraph_packages:
+    - context-broker-ae
+    - context-broker-te
+
+# ============================================================
+# Tuning Parameters
+# ============================================================
+
+tuning:
+  verbose_logging: false
+  llm_timeout_seconds: 1800
+
+# ============================================================
+# Database (infrastructure — requires restart to change)
+# ============================================================
+
+database:
+  pool_min_size: 2
+  pool_max_size: 10

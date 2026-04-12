@@ -1,0 +1,23 @@
+# Context Broker — TE Configuration for Claude Test Stack
+# NOMINAL: Gemini 2.5 Pro for Imperator
+
+imperator:
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-2.5-pro
+  api_key_env: GOOGLE_API_KEY
+
+  system_prompt: imperator_identity
+  build_type: tiered-summary
+  max_context_tokens: auto
+  participant_id: imperator
+  admin_tools: true
+  max_iterations: 15
+  temperature: 0.3
+
+# CEAc: client-side enrichment (REQ-CEAC-R06)
+cea:
+  ceac:
+    enabled: true
+    max_iterations: 3
+    max_memories: 50
+    max_token_budget: 8000

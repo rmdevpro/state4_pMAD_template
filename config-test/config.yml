@@ -1,0 +1,119 @@
+# Context Broker — AE Configuration for Claude Test Stack
+# NOMINAL inference models — fastest cloud providers
+
+log_level: INFO
+
+# Summarization: NOMINAL — Gemini 2.5 Flash-Lite
+summarization:
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-2.5-flash-lite
+  api_key_env: GOOGLE_API_KEY
+
+# Extraction: GPT-4.1 (full model for quality fact extraction)
+extraction:
+  base_url: https://api.openai.com/v1
+  model: gpt-4.1
+  api_key_env: OPENAI_API_KEY
+
+# Embeddings: NOMINAL — Google gemini-embedding-2-preview (MRL → 1024 dims)
+embeddings:
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-embedding-2-preview
+  embedding_dims: 1024
+  api_key_env: GOOGLE_API_KEY
+  tiktoken_enabled: false
+  check_embedding_ctx_length: false
+
+# Reranker: local Infinity (same for all tiers)
+reranker:
+  provider: api
+  base_url: http://context-broker-infinity:7997
+  model: mixedbread-ai/mxbai-rerank-xsmall-v1
+  top_n: 10
+
+# Log embeddings: NOMINAL — OpenAI text-embedding-3-small (MRL → 256 dims)
+log_embeddings:
+  base_url: https://api.openai.com/v1
+  model: text-embedding-3-small
+  embedding_dims: 256
+  api_key_env: OPENAI_API_KEY
+
+build_types:
+  sliding-window:
+    max_context_tokens: auto
+    fallback_tokens: 8192
+    effective_utilization: 0.85
+
+  tiered-summary:
+    tier1_floor_pct: 0.20
+    tier2_chunk_pct: 0.02
+    tier2_min_chunks: 3
+    tier2_max_chunks: 6
+    tier3_pct: 0.02
+    tier3_header_pct: 0.0025
+    max_context_tokens: auto
+    fallback_tokens: 8192
+    effective_utilization: 0.85
+    initial_lookback_multiplier: 3
+    max_lookback_tokens: 400000
+
+  enriched:
+    tier1_floor_pct: 0.15
+    tier2_chunk_pct: 0.02
+    tier2_min_chunks: 3
+    tier2_max_chunks: 6
+    tier3_pct: 0.02
+    tier3_header_pct: 0.0025
+    knowledge_graph_pct: 0.15
+    semantic_retrieval_pct: 0.15
+    max_context_tokens: auto
+    fallback_tokens: 16000
+    effective_utilization: 0.85
+    initial_lookback_multiplier: 3
+    max_lookback_tokens: 400000
+
+packages:
+  source: local
+  local_path: /app/packages
+  devpi_url: null
+  stategraph_packages:
+    - context-broker-ae
+    - context-broker-te
+
+tuning:
+  verbose_logging: true
+  chunk_size: 20
+  consolidation_threshold: 3
+  consolidation_keep_recent: 2
+  summarization_temperature: 0.1
+  trigger_threshold_percent: 0.1
+  extraction_max_chars: 10000
+  memory_half_lives:
+    ephemeral: 3
+    contextual: 14
+    factual: 60
+    historical: 365
+    default: 30
+  tokens_per_message_estimate: 150
+  content_truncation_chars: 500
+  query_truncation_chars: 200
+  rrf_constant: 60
+  search_candidate_limit: 100
+  recency_decay_days: 90
+  recency_max_penalty: 0.2
+  llm_timeout_seconds: 1800
+  embedding_batch_size: 50
+  embedding_concurrency: 3
+  llm_concurrency: 2
+  failure_backoff_threshold: 3
+  failure_backoff_seconds: 5
+  embedding_timeout_seconds: 300
+  extraction_timeout_seconds: 600
+  assembly_timeout_seconds: 600
+
+workers:
+  poll_interval_seconds: 2
+
+database:
+  pool_min_size: 2
+  pool_max_size: 10

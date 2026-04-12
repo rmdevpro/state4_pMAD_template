@@ -1,0 +1,40 @@
+# ASGI server and framework
+uvicorn==0.34.0
+fastapi==0.115.6
+sse-starlette==2.2.1
+
+# LangGraph and LangChain
+# PINNED to 0.x — 1.x upgrade is deferred (DEP-19), requires dedicated session
+langgraph==0.2.60
+langchain==0.3.13
+langchain-core==0.3.28
+langchain-openai==0.2.14
+langchain-community==0.3.13
+langchain-postgres==0.0.13
+
+# Database
+asyncpg==0.30.0
+psycopg2-binary==2.9.10
+
+# Observability
+prometheus-client==0.21.1
+
+# Validation
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Utilities
+httpx==0.28.1
+python-dotenv==1.0.1
+pyyaml==6.0.2
+tiktoken==0.8.0
+tenacity==9.0.0
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-mock==3.14.0
+
+# Code quality
+black==24.10.0
+ruff==0.8.6

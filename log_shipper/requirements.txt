@@ -1,0 +1,2 @@
+aiodocker==0.26.0
+asyncpg==0.31.0

@@ -1,0 +1,25 @@
+# State 4 pMAD — TE Configuration (Thought Engine)
+# Copy this file to config/te.yml and customize for your deployment.
+# Hot-reloadable — changes take effect without restart.
+
+imperator:
+  # Inference provider — any OpenAI-compatible endpoint
+  base_url: https://api.openai.com/v1
+  model: gpt-4o-mini
+  api_key_env: OPENAI_API_KEY
+
+  system_prompt: imperator_identity
+  max_context_tokens: 8192
+  max_iterations: 5
+  temperature: 0.3
+  admin_tools: true
+
+# ============================================================
+# Context Broker Integration (optional)
+# ============================================================
+# Set url to enable persistent conversation memory via an external
+# Context Broker. When absent or null, the Imperator uses local
+# trim_messages for context management (no cross-session persistence).
+
+# context_broker:
+#   url: http://context-broker:8080

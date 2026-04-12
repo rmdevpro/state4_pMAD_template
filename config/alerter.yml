@@ -1,0 +1,32 @@
+# Context Broker Alerter — Live Configuration
+
+# LLM for formatting alerts
+llm:
+  base_url: http://context-broker-ollama:11434/v1
+  model: qwen2.5:7b
+  api_key_env: ""
+
+# Embeddings for instruction search
+embeddings:
+  base_url: http://context-broker-infinity:7997
+  model: nomic-ai/nomic-embed-text-v1.5
+  api_key_env: ""
+
+# Enrich alerts with recent error logs
+log_context:
+  enabled: true
+  level: ERROR
+  limit: 10
+  minutes: 5
+
+# Default channels — used when no instruction matches
+default_channels:
+  - type: smtp
+    host: smtp.sendgrid.net
+    port: 587
+    username: apikey
+    password_env: SENDGRID_API_KEY
+    from: j@rmdev.pro
+    to: j@4morr.com
+    subject_template: "[Joshua26] {type}: {subject}"
+  - type: log

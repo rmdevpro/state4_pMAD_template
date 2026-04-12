@@ -1,0 +1,1 @@
+Send a brief notification confirming the system is up and running. Use the send_notification tool with event_type "system.health" and a short message including the current time and a summary that all services are operational.

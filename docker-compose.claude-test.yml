@@ -1,0 +1,183 @@
+# Context Broker — Isolated Test Stack
+# Runs alongside the production stack with no conflicts.
+#
+# IMPORTANT: Always use --project-name to avoid collision with production:
+#   docker compose -p claude-test -f docker-compose.claude-test.yml up -d --build
+#   docker compose -p claude-test -f docker-compose.claude-test.yml down -v
+#
+# The -p flag gives all containers a claude-test- prefix and creates
+# a separate project namespace. Internal hostnames stay the same
+# (context-broker-postgres, etc.) for DNS resolution within the
+# isolated claude-test-net bridge network.
+#
+# Differences from production:
+#   - Project name: claude-test (vs contextbroker)
+#   - Network: claude-test-net (isolated from context-broker-net)
+#   - Gateway port: 8081 (production is 8080)
+#   - Data: ./data-test/ (separate from ./data/)
+#   - Config: ./config-test/ (nominal models baked in)
+#   - No UI container (not needed for testing)
+#   - No Ollama (nominal set uses cloud models exclusively)
+
+services:
+
+  claude-test-broker:
+    image: nginx:1.28.0-alpine
+    container_name: claude-test-broker
+    hostname: context-broker
+    restart: unless-stopped
+    networks:
+      - default
+      - claude-test-net
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 60s
+      retries: 3
+
+  context-broker-langgraph:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: context-broker-langgraph:latest
+    container_name: claude-test-langgraph
+    hostname: context-broker-langgraph
+    restart: unless-stopped
+    networks:
+      - claude-test-net
+    volumes:
+      - ./config-test:/config
+      - ./data-test:/data
+      - ./packages:/app/packages:ro
+    env_file:
+      - ./config/credentials/.env
+    environment:
+      - POSTGRES_HOST=context-broker-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=context_broker
+      - POSTGRES_USER=context_broker
+      - NEO4J_HOST=context-broker-neo4j
+      - NEO4J_PORT=7687
+      - NEO4J_HTTP_PORT=7474
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 300s
+      retries: 3
+
+  context-broker-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: claude-test-postgres
+    hostname: context-broker-postgres
+    restart: unless-stopped
+    networks:
+      - claude-test-net
+    volumes:
+      - ./data-test/postgres:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    env_file:
+      - ./config/credentials/.env
+    environment:
+      - POSTGRES_DB=context_broker
+      - POSTGRES_USER=context_broker
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "context_broker", "-d", "context_broker"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  context-broker-neo4j:
+    image: neo4j:5.26.0
+    container_name: claude-test-neo4j
+    hostname: context-broker-neo4j
+    restart: unless-stopped
+    networks:
+      - claude-test-net
+    volumes:
+      - ./data-test/neo4j:/data
+    environment:
+      - NEO4J_AUTH=none
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=1G
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  context-broker-infinity:
+    image: michaelf34/infinity:0.0.77
+    container_name: claude-test-infinity
+    hostname: context-broker-infinity
+    restart: unless-stopped
+    command: >
+      v2
+      --model-id nomic-ai/nomic-embed-text-v1.5
+      --model-id mixedbread-ai/mxbai-rerank-xsmall-v1
+      --engine torch
+      --port 7997
+    networks:
+      - claude-test-net
+    volumes:
+      - ./data-test/infinity:/app/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:7997/health || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  claude-test-log-shipper:
+    build:
+      context: ./log_shipper
+    container_name: claude-test-log-shipper
+    hostname: context-broker-log-shipper
+    restart: unless-stopped
+    networks:
+      - claude-test-net
+    # Grant docker socket access via group_add — matches host docker GID.
+    # Override DOCKER_GID in .env if host docker group is not GID 125.
+    group_add:
+      - "${DOCKER_GID:-125}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - POSTGRES_DSN=postgresql://context_broker:${POSTGRES_PASSWORD:-contextbroker123}@context-broker-postgres:5432/context_broker
+    env_file:
+      - ./config/credentials/.env
+
+  context-broker-alerter:
+    build:
+      context: ./alerter
+    container_name: claude-test-alerter
+    hostname: context-broker-alerter
+    restart: unless-stopped
+    networks:
+      - claude-test-net
+    environment:
+      - POSTGRES_DSN=postgresql://context_broker:${POSTGRES_PASSWORD:-contextbroker123}@context-broker-postgres:5432/context_broker
+      - ALERTER_CONFIG=/config/alerter.yml
+    env_file:
+      - ./config/credentials/.env
+    volumes:
+      - ./config-test:/config:ro
+
+networks:
+  claude-test-net:
+    driver: bridge

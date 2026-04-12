@@ -1,0 +1,21 @@
+# Context Broker Alerter — Test Stack Configuration
+# Uses log channel only (no real SMTP/Slack/etc during tests)
+
+llm:
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-2.5-flash-lite
+  api_key_env: GOOGLE_API_KEY
+
+embeddings:
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-embedding-001
+  api_key_env: GOOGLE_API_KEY
+
+log_context:
+  enabled: true
+  level: ERROR
+  limit: 10
+  minutes: 5
+
+default_channels:
+  - type: log

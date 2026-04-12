@@ -1,0 +1,51 @@
+# Credentials (loaded via env_file in docker-compose)
+config/credentials/.env
+config/credentials/.env.local-backup
+config/credentials/postgres_password.txt
+.env
+
+# Persistent data volumes (managed by Docker)
+# Directories tracked via .gitkeep for zero-script deployment (ERQ-003 §5.1.1).
+# Contents ignored — only directory structure is committed.
+# Pattern: unignore subdir, then ignore its contents, then unignore .gitkeep.
+data/*
+!data/.gitkeep
+!data/downloads/
+!data/postgres/
+!data/neo4j/
+!data/infinity/
+!data/ollama/
+data/downloads/*
+!data/downloads/.gitkeep
+data/postgres/*
+!data/postgres/.gitkeep
+data/neo4j/*
+!data/neo4j/.gitkeep
+data/infinity/*
+!data/infinity/.gitkeep
+data/ollama/*
+!data/ollama/.gitkeep
+data-test/*
+!data-test/.gitkeep
+!data-test/downloads/
+!data-test/postgres/
+!data-test/neo4j/
+!data-test/infinity/
+data-test/downloads/*
+!data-test/downloads/.gitkeep
+data-test/postgres/*
+!data-test/postgres/.gitkeep
+data-test/neo4j/*
+!data-test/neo4j/.gitkeep
+data-test/infinity/*
+!data-test/infinity/.gitkeep
+
+# Python bytecode
+*.pyc
+__pycache__/
+
+# Package build artifacts
+*.egg-info/
+build/
+dist/
+*.whl
