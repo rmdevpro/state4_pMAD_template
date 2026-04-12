@@ -11,7 +11,10 @@ RUN adduser --disabled-password --no-create-home --system --group shipper
 # Using slim instead of alpine ensures we can use wheels for asyncpg,
 # keeping the image small without needing build-essentials.
 COPY --chown=shipper requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+ARG PIP_INDEX_URL="http://irina:3141/root/pypi/+simple/"
+ARG PIP_TRUSTED_HOST="irina"
+RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" --trusted-host "$PIP_TRUSTED_HOST" -r requirements.txt
 
 # Copy the shipper script
 COPY --chown=shipper shipper.py .
