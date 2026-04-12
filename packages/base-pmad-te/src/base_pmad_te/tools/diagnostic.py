@@ -8,7 +8,7 @@ import logging
 import asyncpg
 from langchain_core.tools import tool
 
-from pmad_template_te._ctx import get_ctx
+from base_pmad_te._ctx import get_ctx
 
 _log = logging.getLogger("pmad_template.tools.diagnostic")
 

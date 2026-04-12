@@ -76,9 +76,9 @@ packages:
   source: local
   local_path: /app/packages
   devpi_url: null
-  stategraph_packages:
-    - pmad-template-ae
-    - pmad-template-te
+
+  ae: base-pmad-ae==0.1.0
+  te: base-pmad-te==0.1.0
 
 tuning:
   verbose_logging: true

@@ -97,7 +97,7 @@ def get_ctx() -> TEContext:
     """
     if _ctx is None:
         raise RuntimeError(
-            "TEContext not initialized — call pmad_template_te._ctx.initialize() "
+            "TEContext not initialized — call base_pmad_te._ctx.initialize() "
             "before using TE components."
         )
     return _ctx

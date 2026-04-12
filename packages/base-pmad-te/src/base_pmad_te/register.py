@@ -18,8 +18,8 @@ def register() -> dict:
     - imperator_builder: callable that builds the compiled Imperator StateGraph
     - initialize: callable(ctx) — AE bootstrap calls this before flow compilation
     """
-    from pmad_template_te._ctx import initialize
-    from pmad_template_te.imperator_flow import build_imperator_flow
+    from base_pmad_te._ctx import initialize
+    from base_pmad_te.imperator_flow import build_imperator_flow
 
     return {
         "identity": "Imperator",

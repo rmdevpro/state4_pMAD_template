@@ -27,16 +27,16 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
-from pmad_template_te._ctx import get_ctx
+from base_pmad_te._ctx import get_ctx
 
-from pmad_template_te.tools.admin import get_tools as get_admin_tools
-from pmad_template_te.tools.alerting import get_tools as get_alerting_tools
-from pmad_template_te.tools.diagnostic import get_tools as get_diagnostic_tools
-from pmad_template_te.tools.filesystem import get_tools as get_filesystem_tools
-from pmad_template_te.tools.notify import get_tools as get_notify_tools
-from pmad_template_te.tools.operational import get_tools as get_operational_tools
-from pmad_template_te.tools.system import get_tools as get_system_tools
-from pmad_template_te.tools.web import get_tools as get_web_tools
+from base_pmad_te.tools.admin import get_tools as get_admin_tools
+from base_pmad_te.tools.alerting import get_tools as get_alerting_tools
+from base_pmad_te.tools.diagnostic import get_tools as get_diagnostic_tools
+from base_pmad_te.tools.filesystem import get_tools as get_filesystem_tools
+from base_pmad_te.tools.notify import get_tools as get_notify_tools
+from base_pmad_te.tools.operational import get_tools as get_operational_tools
+from base_pmad_te.tools.system import get_tools as get_system_tools
+from base_pmad_te.tools.web import get_tools as get_web_tools
 
 _log = logging.getLogger("pmad_template.flows.imperator")
 

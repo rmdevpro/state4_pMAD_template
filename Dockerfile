@@ -54,15 +54,9 @@ COPY --chown=${USER_NAME}:${USER_NAME} app/ ./app/
 COPY --chown=${USER_NAME}:${USER_NAME} entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
-# REQ-001 §10: Copy and pre-build StateGraph packages as wheels.
-# Built to /app/stategraph-wheels/ (not /app/packages/ which may be volume-mounted).
-# entrypoint.sh installs them at startup via pip install --user --no-deps.
-COPY --chown=${USER_NAME}:${USER_NAME} packages/pmad-template-ae/ ./sg-src/pmad-template-ae/
-COPY --chown=${USER_NAME}:${USER_NAME} packages/pmad-template-te/ ./sg-src/pmad-template-te/
-RUN mkdir -p ./stategraph-wheels && \
-    pip wheel --no-deps -w ./stategraph-wheels/ ./sg-src/pmad-template-ae/ && \
-    pip wheel --no-deps -w ./stategraph-wheels/ ./sg-src/pmad-template-te/ && \
-    rm -rf ./sg-src
+# AE and TE packages are installed at startup by entrypoint.sh from the
+# configured source (PyPI, devpi, or local). No pre-built wheels in the image.
+# For source: local, the packages/ directory is volume-mounted at runtime.
 
 EXPOSE 8000
 

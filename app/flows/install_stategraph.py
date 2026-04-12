@@ -87,10 +87,28 @@ async def install_stategraph(
 
         shutil.rmtree(f"/tmp/sg-install-{package_name}", ignore_errors=True)
 
-    # Rescan entry_points to discover the new/updated package
-    from app.stategraph_registry import scan
+    # Reload the package via convention-based registry
+    from app.package_registry import load_ae, load_te
 
-    discovered = scan()
+    from app.config import async_load_config as _async_load_config
+
+    _cfg = await _async_load_config()
+    # Determine package type from config and reload accordingly
+    pkg_config = _cfg.get("packages", {})
+    ae_spec = pkg_config.get("ae", "")
+    te_spec = pkg_config.get("te", "")
+    if ae_spec and package_name == ae_spec.split("==")[0].strip():
+        load_ae(package_name)
+    elif te_spec and package_name == te_spec.split("==")[0].strip():
+        load_te(package_name)
+    else:
+        # Could be an eMAD or unknown — try loading as eMAD
+        from app.package_registry import load_emad
+
+        try:
+            load_emad(package_name)
+        except (ImportError, AttributeError):
+            _log.warning("Package '%s' loaded but not recognized as AE, TE, or eMAD", package_name)
 
     # Clear compiled graph caches so next use picks up new code
     from app.flows.build_type_registry import clear_compiled_cache

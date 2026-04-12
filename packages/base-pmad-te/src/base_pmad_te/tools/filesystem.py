@@ -191,7 +191,7 @@ async def file_write(path: str, content: str) -> str:
 
 def _sync_read_system_prompt() -> str:
     """Synchronous system prompt read helper."""
-    from pmad_template_te._ctx import get_ctx
+    from base_pmad_te._ctx import get_ctx
 
     config = get_ctx().load_merged_config()
     prompt_name = config.get("imperator", {}).get("system_prompt", "imperator_identity")
@@ -217,7 +217,7 @@ async def read_system_prompt() -> str:
 
 def _sync_update_system_prompt(content: str) -> str:
     """Synchronous system prompt update helper."""
-    from pmad_template_te._ctx import get_ctx
+    from base_pmad_te._ctx import get_ctx
 
     config = get_ctx().load_merged_config()
     prompt_name = config.get("imperator", {}).get("system_prompt", "imperator_identity")

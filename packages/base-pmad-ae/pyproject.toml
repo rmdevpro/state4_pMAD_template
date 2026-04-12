@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pmad-template-ae"
+name = "base-pmad-ae"
 version = "0.1.0"
 description = "Context Broker Action Engine — infrastructure StateGraphs"
 requires-python = ">=3.12"
@@ -14,9 +14,6 @@ dependencies = [
     "langchain-core>=0.3.28",
     "langchain-openai>=0.2.14",
 ]
-
-[project.entry-points."pmad_template.ae"]
-pmad-template-ae = "pmad_template_ae.register:register"
 
 [tool.setuptools.packages.find]
 where = ["src"]

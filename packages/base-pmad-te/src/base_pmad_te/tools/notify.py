@@ -44,7 +44,7 @@ async def send_notification(
         title: Optional short title for the notification.
     """
     try:
-        from pmad_template_te._ctx import get_ctx
+        from base_pmad_te._ctx import get_ctx
 
         loop = asyncio.get_running_loop()
         config = await loop.run_in_executor(None, get_ctx().load_merged_config)

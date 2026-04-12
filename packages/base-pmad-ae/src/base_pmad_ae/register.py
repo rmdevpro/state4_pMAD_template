@@ -16,9 +16,9 @@ def register() -> dict:
     - build_types: dict of (assembly_builder, retrieval_builder) pairs
     - flows: dict of flow_name -> builder callable
     """
-    from pmad_template_ae.health_flow import build_health_check_flow
-    from pmad_template_ae.metrics_flow import build_metrics_flow
-    from pmad_template_ae.autoprompt_dispatcher import build_autoprompt_dispatcher_flow
+    from base_pmad_ae.health_flow import build_health_check_flow
+    from base_pmad_ae.metrics_flow import build_metrics_flow
+    from base_pmad_ae.autoprompt_dispatcher import build_autoprompt_dispatcher_flow
 
     return {
         "build_types": {},
