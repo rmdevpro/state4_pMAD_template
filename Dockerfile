@@ -34,8 +34,8 @@ COPY --chown=${USER_NAME}:${USER_NAME} requirements.txt ./
 ARG PACKAGE_SOURCE=pypi
 ARG DEVPI_URL=""
 
-ARG PIP_INDEX_URL="http://irina:3141/root/pypi/+simple/"
-ARG PIP_TRUSTED_HOST="irina"
+ARG PIP_INDEX_URL="http://192.168.1.110:3141/root/pypi/+simple/"
+ARG PIP_TRUSTED_HOST="192.168.1.110"
 
 RUN if [ "$PACKAGE_SOURCE" = "local" ]; then \
         pip install --no-cache-dir --no-index --find-links=/app/packages -r requirements.txt; \

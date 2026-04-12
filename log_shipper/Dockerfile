@@ -12,8 +12,8 @@ RUN adduser --disabled-password --no-create-home --system --group shipper
 # keeping the image small without needing build-essentials.
 COPY --chown=shipper requirements.txt .
 
-ARG PIP_INDEX_URL="http://irina:3141/root/pypi/+simple/"
-ARG PIP_TRUSTED_HOST="irina"
+ARG PIP_INDEX_URL="http://192.168.1.110:3141/root/pypi/+simple/"
+ARG PIP_TRUSTED_HOST="192.168.1.110"
 RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" --trusted-host "$PIP_TRUSTED_HOST" -r requirements.txt
 
 # Copy the shipper script
