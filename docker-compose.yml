@@ -103,7 +103,7 @@ services:
   # Imperator activation. Fires HTTP callbacks to the langgraph container's
   # dispatcher stategraph. No custom code — OTS image.
   context-broker-dkron:
-    image: dkron/dkron:4
+    image: dkron/dkron:4.1.0
     container_name: context-broker-dkron
     hostname: context-broker-dkron
     restart: unless-stopped
