@@ -73,7 +73,7 @@ build_types:
     max_lookback_tokens: 400000
 
 packages:
-  source: local
+  source: pypi
   local_path: /app/packages
   devpi_url: null
 
