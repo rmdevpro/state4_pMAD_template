@@ -9,7 +9,7 @@ import shlex
 
 from langchain_core.tools import tool
 
-_log = logging.getLogger("context_broker.tools.system")
+_log = logging.getLogger("pmad_template.tools.system")
 
 # Allowlisted binaries — read-only system inspection only
 # Allowlisted binaries — read-only system inspection only.

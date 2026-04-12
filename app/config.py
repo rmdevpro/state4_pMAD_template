@@ -19,7 +19,7 @@ from typing import Any
 
 import yaml
 
-_log = logging.getLogger("context_broker.config")
+_log = logging.getLogger("pmad_template.config")
 
 CONFIG_PATH = os.environ.get("CONFIG_PATH", "/config/config.yml")
 TE_CONFIG_PATH = os.environ.get("TE_CONFIG_PATH", "/config/te.yml")
@@ -430,7 +430,7 @@ def verbose_log_auto(logger: Any, message: str, *args: Any) -> None:
         # R6-m6: Broadened to catch bad YAML structure (ValueError/TypeError)
         # in addition to file-level errors. Verbose logging must never crash
         # the operation, but log the failure at DEBUG for diagnosability.
-        logging.getLogger("context_broker.config").debug(
+        logging.getLogger("pmad_template.config").debug(
             "verbose_log_auto: config load failed: %s", exc
         )
 

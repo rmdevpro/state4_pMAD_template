@@ -11,7 +11,7 @@ import logging
 import os
 import subprocess
 
-_log = logging.getLogger("context_broker.flows.install_stategraph")
+_log = logging.getLogger("pmad_template.flows.install_stategraph")
 
 
 async def install_stategraph(

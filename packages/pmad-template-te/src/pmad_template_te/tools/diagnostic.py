@@ -8,9 +8,9 @@ import logging
 import asyncpg
 from langchain_core.tools import tool
 
-from context_broker_te._ctx import get_ctx
+from pmad_template_te._ctx import get_ctx
 
-_log = logging.getLogger("context_broker.tools.diagnostic")
+_log = logging.getLogger("pmad_template.tools.diagnostic")
 
 
 @tool
@@ -20,7 +20,7 @@ async def log_query(
     """Query MAD container logs from the system_logs table.
 
     Logs are collected by the log shipper from all containers on
-    context-broker-net and stored in Postgres with resolved names.
+    pmad-template-net and stored in Postgres with resolved names.
 
     Args:
         container: Filter by container name (e.g., "langgraph", "postgres"). Empty = all.

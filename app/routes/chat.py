@@ -25,7 +25,7 @@ from app.flows.imperator_wrapper import (
 from app.models import ChatCompletionRequest
 from app.routes.caller_identity import resolve_caller
 
-_log = logging.getLogger("context_broker.routes.chat")
+_log = logging.getLogger("pmad_template.routes.chat")
 
 router = APIRouter()
 

@@ -14,7 +14,7 @@ import socket
 
 from fastapi import Request
 
-_log = logging.getLogger("context_broker.routes.caller_identity")
+_log = logging.getLogger("pmad_template.routes.caller_identity")
 
 
 @functools.lru_cache(maxsize=256)

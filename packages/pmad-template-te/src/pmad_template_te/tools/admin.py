@@ -12,9 +12,9 @@ import asyncpg
 import yaml
 from langchain_core.tools import tool
 
-from context_broker_te._ctx import get_ctx
+from pmad_template_te._ctx import get_ctx
 
-_log = logging.getLogger("context_broker.tools.admin")
+_log = logging.getLogger("pmad_template.tools.admin")
 
 
 def _redact_config(config: dict) -> dict:

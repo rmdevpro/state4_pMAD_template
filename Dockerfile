@@ -1,11 +1,11 @@
-# context-broker-langgraph — Application container
+# pmad-template-langgraph — Application container
 # All LangGraph flows, queue workers, Imperator, and ASGI server.
 #
 # Build context: project root (.)
 
 FROM python:3.12.10-slim
 
-ARG USER_NAME=context-broker
+ARG USER_NAME=pmad-template
 ARG USER_UID=1000
 ARG USER_GID=1000
 
@@ -57,11 +57,11 @@ RUN chmod +x ./entrypoint.sh
 # REQ-001 §10: Copy and pre-build StateGraph packages as wheels.
 # Built to /app/stategraph-wheels/ (not /app/packages/ which may be volume-mounted).
 # entrypoint.sh installs them at startup via pip install --user --no-deps.
-COPY --chown=${USER_NAME}:${USER_NAME} packages/context-broker-ae/ ./sg-src/context-broker-ae/
-COPY --chown=${USER_NAME}:${USER_NAME} packages/context-broker-te/ ./sg-src/context-broker-te/
+COPY --chown=${USER_NAME}:${USER_NAME} packages/pmad-template-ae/ ./sg-src/pmad-template-ae/
+COPY --chown=${USER_NAME}:${USER_NAME} packages/pmad-template-te/ ./sg-src/pmad-template-te/
 RUN mkdir -p ./stategraph-wheels && \
-    pip wheel --no-deps -w ./stategraph-wheels/ ./sg-src/context-broker-ae/ && \
-    pip wheel --no-deps -w ./stategraph-wheels/ ./sg-src/context-broker-te/ && \
+    pip wheel --no-deps -w ./stategraph-wheels/ ./sg-src/pmad-template-ae/ && \
+    pip wheel --no-deps -w ./stategraph-wheels/ ./sg-src/pmad-template-te/ && \
     rm -rf ./sg-src
 
 EXPOSE 8000

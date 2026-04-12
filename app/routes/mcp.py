@@ -28,7 +28,7 @@ from app.flows.tool_dispatch import dispatch_tool
 from app.models import MCPToolCall
 from app.routes.caller_identity import resolve_caller
 
-_log = logging.getLogger("context_broker.routes.mcp")
+_log = logging.getLogger("pmad_template.routes.mcp")
 
 
 def _json_default(obj: object) -> object:
@@ -201,7 +201,7 @@ async def mcp_tool_call(
                     "protocolVersion": "2024-11-05",
                     "capabilities": {"tools": {}},
                     "serverInfo": {
-                        "name": "context-broker",
+                        "name": "pmad-template",
                         "version": "1.0.0",
                     },
                 },
@@ -397,7 +397,7 @@ def _get_tool_list() -> list[dict]:
                 "properties": {
                     "package_name": {
                         "type": "string",
-                        "description": "Python package name (e.g., 'context-broker-te', 'context-broker-ae')",
+                        "description": "Python package name (e.g., 'pmad-template-te', 'pmad-template-ae')",
                     },
                     "version": {
                         "type": "string",

@@ -9,14 +9,14 @@
 
 services:
 
-  context-broker:
+  pmad-template:
     image: nginx:1.28.0-alpine
-    container_name: context-broker
-    hostname: context-broker
+    container_name: pmad-template
+    hostname: pmad-template
     restart: unless-stopped
     networks:
       - default
-      - context-broker-net
+      - pmad-template-net
     ports:
       - "8080:8080"
     volumes:
@@ -28,16 +28,16 @@ services:
       start_period: 60s
       retries: 3
 
-  context-broker-langgraph:
+  pmad-template-langgraph:
     build:
       context: .
       dockerfile: Dockerfile
-    image: context-broker-langgraph:latest
-    container_name: context-broker-langgraph
-    hostname: context-broker-langgraph
+    image: pmad-template-langgraph:latest
+    container_name: pmad-template-langgraph
+    hostname: pmad-template-langgraph
     restart: unless-stopped
     networks:
-      - context-broker-net
+      - pmad-template-net
     volumes:
       - ./config:/config
       - ./data:/data
@@ -46,10 +46,10 @@ services:
     env_file:
       - ./config/credentials/.env
     environment:
-      - POSTGRES_HOST=context-broker-postgres
+      - POSTGRES_HOST=pmad-template-postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=${POSTGRES_DB:-context_broker}
-      - POSTGRES_USER=${POSTGRES_USER:-context_broker}
+      - POSTGRES_DB=${POSTGRES_DB:-pmad_template}
+      - POSTGRES_USER=${POSTGRES_USER:-pmad_template}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -57,58 +57,58 @@ services:
       start_period: 300s
       retries: 3
 
-  context-broker-postgres:
+  pmad-template-postgres:
     image: pgvector/pgvector:pg16
-    container_name: context-broker-postgres
-    hostname: context-broker-postgres
+    container_name: pmad-template-postgres
+    hostname: pmad-template-postgres
     restart: unless-stopped
     networks:
-      - context-broker-net
+      - pmad-template-net
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     env_file:
       - ./config/credentials/.env
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-context_broker}
-      - POSTGRES_USER=${POSTGRES_USER:-context_broker}
+      - POSTGRES_DB=${POSTGRES_DB:-pmad_template}
+      - POSTGRES_USER=${POSTGRES_USER:-pmad_template}
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-context_broker}", "-d", "${POSTGRES_DB:-context_broker}"]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-pmad_template}", "-d", "${POSTGRES_DB:-pmad_template}"]
       interval: 30s
       timeout: 10s
       start_period: 30s
       retries: 3
 
   # Log collection for Imperator diagnostics.
-  # Discovers all containers on context-broker-net via Docker API,
+  # Discovers all containers on pmad-template-net via Docker API,
   # tails their logs, and writes to Postgres with resolved container names.
-  context-broker-log-shipper:
+  pmad-template-log-shipper:
     build:
       context: ./log_shipper
-    container_name: context-broker-log-shipper
-    hostname: context-broker-log-shipper
+    container_name: pmad-template-log-shipper
+    hostname: pmad-template-log-shipper
     restart: unless-stopped
     networks:
-      - context-broker-net
+      - pmad-template-net
     group_add:
       - "${DOCKER_GID:-125}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      - POSTGRES_DSN=postgresql://context_broker:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@context-broker-postgres:5432/context_broker
+      - POSTGRES_DSN=postgresql://pmad_template:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@pmad-template-postgres:5432/pmad_template
     env_file:
       - ./config/credentials/.env
 
   # Autoprompter — Dkron scheduler for time-based and event-driven
   # Imperator activation. Fires HTTP callbacks to the langgraph container's
   # dispatcher stategraph. No custom code — OTS image.
-  context-broker-dkron:
+  pmad-template-dkron:
     image: dkron/dkron:4.1.0
-    container_name: context-broker-dkron
-    hostname: context-broker-dkron
+    container_name: pmad-template-dkron
+    hostname: pmad-template-dkron
     restart: unless-stopped
     networks:
-      - context-broker-net
+      - pmad-template-net
     volumes:
       - ./data/dkron:/dkron.data
       - ./config/dkron:/config/dkron:ro
@@ -122,30 +122,30 @@ services:
 
   # Gradio Chat UI for the Imperator.
   # Multi-MAD client — connects to any State 4 MAD via standard endpoints.
-  context-broker-ui:
+  pmad-template-ui:
     build:
       context: ./ui
-    container_name: context-broker-ui
-    hostname: context-broker-ui
+    container_name: pmad-template-ui
+    hostname: pmad-template-ui
     restart: unless-stopped
     networks:
-      - context-broker-net
+      - pmad-template-net
     volumes:
       - ./ui/config.yml:/app/config.yml:ro
 
   # Alerter webhook relay.
   # Receives CloudEvents webhooks from the Imperator's send_notification tool,
   # optionally formats via LLM, and fans out to Slack/Discord/ntfy/SMTP/webhook.
-  context-broker-alerter:
+  pmad-template-alerter:
     build:
       context: ./alerter
-    container_name: context-broker-alerter
-    hostname: context-broker-alerter
+    container_name: pmad-template-alerter
+    hostname: pmad-template-alerter
     restart: unless-stopped
     networks:
-      - context-broker-net
+      - pmad-template-net
     environment:
-      - POSTGRES_DSN=postgresql://context_broker:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@context-broker-postgres:5432/context_broker
+      - POSTGRES_DSN=postgresql://pmad_template:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@pmad-template-postgres:5432/pmad_template
       - ALERTER_CONFIG=/config/alerter.yml
     env_file:
       - ./config/credentials/.env
@@ -153,5 +153,5 @@ services:
       - ./config:/config:ro
 
 networks:
-  context-broker-net:
+  pmad-template-net:
     driver: bridge
