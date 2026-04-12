@@ -46,9 +46,15 @@ grep -r 'context.broker' . --include='*.py' --include='*.yml' --include='*.toml'
 
 ## 3. Configure Credentials
 
+There are two credential files the deployment needs:
+- A `.env` at the project root — compose reads this for variable interpolation (e.g., `${POSTGRES_PASSWORD}` in service definitions)
+- `config/credentials/.env` — loaded into containers via `env_file` directive
+
+Both can point at the same file.
+
 ### Standalone deployment
 
-Create a `.env` file at the project root (for compose variable interpolation) and at `config/credentials/.env` (for container env_file):
+Create a `.env` file with your credentials:
 
 ```bash
 cat > .env << 'EOF'
@@ -61,17 +67,31 @@ cp .env config/credentials/.env
 
 ### Ecosystem deployment (Joshua26)
 
-Symlink to the shared credential files on the NFS share:
+Credentials live on the NFS share from irina (`192.168.1.110`), mounted at `/mnt/storage` on all hosts.
+
+**Database credentials** are at `/mnt/storage/credentials/databases/`. Create a file for your MAD:
 
 ```bash
-# Project root .env (for compose interpolation)
-ln -sf /storage/credentials/databases/my-mad.env .env
-
-# Container env_file
-ln -sf /storage/credentials/databases/my-mad.env config/credentials/.env
+# On any host:
+cat > /mnt/storage/credentials/databases/my-mad.env << 'EOF'
+POSTGRES_PASSWORD=your-secure-password
+EOF
 ```
 
-For API keys, add a `docker-compose.override.yml`:
+Symlink it into the project:
+
+```bash
+ln -sf /mnt/storage/credentials/databases/my-mad.env .env
+ln -sf /mnt/storage/credentials/databases/my-mad.env config/credentials/.env
+```
+
+**API keys** are at `/mnt/storage/credentials/api-keys/`. Available keys include:
+- `gemini.env` (GEMINI_API_KEY)
+- `openai.env` (OPENAI_API_KEY)
+- `anthropic.env` (ANTHROPIC_API_KEY)
+- `grok.env`, `together.env`, etc.
+
+Load the key your Imperator needs via `docker-compose.override.yml`:
 
 ```yaml
 services:
@@ -80,6 +100,8 @@ services:
       - ./config/credentials/.env
       - /mnt/storage/credentials/api-keys/gemini.env
 ```
+
+The `api_key_env` field in `te.yml` must match the variable name in the key file (e.g., `api_key_env: GEMINI_API_KEY` matches `GEMINI_API_KEY=...` in `gemini.env`).
 
 ---
 
@@ -260,19 +282,43 @@ The Imperator manages alert instructions at runtime via tools (`add_alert_instru
 
 ### Standalone
 
+For standalone deployment (outside the Joshua26 ecosystem), override the pip index to use public PyPI:
+
 ```bash
-docker compose up -d --build
+docker compose build --build-arg PIP_INDEX_URL=https://pypi.org/simple/ --build-arg PIP_TRUSTED_HOST=pypi.org
+docker compose up -d
 ```
 
 ### Ecosystem (Joshua26)
 
-For ecosystem deployment, the Dockerfiles default to Alexandria (irina) for pip packages. Docker images route through the daemon-level registry mirror automatically.
+All Dockerfiles default to Alexandria (`192.168.1.110:3141`) for pip packages. Docker images route through the daemon-level registry mirror (`192.168.1.110:5001`, configured in `/etc/docker/daemon.json` on all hosts). Nothing goes over the internet.
+
+Recommended deployment location: `/workspace/my-mad/` on the target host.
 
 ```bash
+# On the target host (e.g., m5 at 192.168.1.120):
+cd /workspace
+git clone https://github.com/yourorg/my-mad.git
+cd my-mad
+
+# Set up credentials (see section 3)
+ln -sf /mnt/storage/credentials/databases/my-mad.env .env
+ln -sf /mnt/storage/credentials/databases/my-mad.env config/credentials/.env
+
+# Create override for API keys
+cat > docker-compose.override.yml << 'EOF'
+services:
+  my-mad-langgraph:
+    env_file:
+      - ./config/credentials/.env
+      - /mnt/storage/credentials/api-keys/gemini.env
+EOF
+
+# Build and start
 docker compose up -d --build
 ```
 
-If using API keys from the NFS share, ensure your `docker-compose.override.yml` is in place.
+**Note:** The postgres data directory (`data/postgres/`) must be empty for first-time initialization. If a `.gitkeep` file exists there, remove it before starting: `rm -f data/postgres/.gitkeep`
 
 ### Verify
 
