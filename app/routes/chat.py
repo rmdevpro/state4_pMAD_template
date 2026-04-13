@@ -36,25 +36,34 @@ def _get_stategraph(model_name: str):
     """Look up and return the compiled stategraph for the given model name.
 
     Caches compiled graphs. Returns None if the model is not registered.
+
+    Lookup order:
+    1. eMAD directory (/emads/{model_name}/config.json exists) → runbook-emad-te
+    2. Host Imperator (fallback for any model name when TE is loaded)
     """
     if model_name in _graph_cache:
         return _graph_cache[model_name]
 
+    import os
+
     from app.package_registry import get_imperator_builder, get_build_func
 
-    # Check eMAD instances first (DB-registered)
-    build_func = get_build_func(model_name)
-    if build_func is not None:
-        graph = build_func({})
-        _graph_cache[model_name] = graph
-        return graph
+    # Check if this model has an eMAD config directory
+    emad_config_path = f"/emads/{model_name}/config.json"
+    if os.path.isfile(emad_config_path):
+        build_func = get_build_func("runbook-emad-te")
+        if build_func is not None:
+            graph = build_func({})
+            _graph_cache[model_name] = graph
+            return graph
 
-    # Check if this is the host Imperator
-    builder = get_imperator_builder()
-    if builder is not None:
-        graph = builder()
-        _graph_cache[model_name] = graph
-        return graph
+    # Host Imperator — only for the "host" model name
+    if model_name == "host":
+        builder = get_imperator_builder()
+        if builder is not None:
+            graph = builder()
+            _graph_cache[model_name] = graph
+            return graph
 
     return None
 
