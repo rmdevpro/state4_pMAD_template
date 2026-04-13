@@ -121,7 +121,6 @@ async def install_stategraph(
     return {
         "status": "installed",
         "package": pkg_spec,
-        "discovered": discovered,
     }
 
 
