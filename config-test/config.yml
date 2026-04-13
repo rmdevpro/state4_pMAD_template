@@ -78,7 +78,7 @@ packages:
   devpi_url: null
 
   ae: base-pmad-ae==0.1.0
-  te: base-pmad-te==0.1.0
+  te: base-pmad-te-ncb==0.1.0
 
 tuning:
   verbose_logging: true

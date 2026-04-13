@@ -23,7 +23,7 @@ packages:
   devpi_url: null               # used when source: devpi
 
   ae: base-pmad-ae==0.1.0
-  te: base-pmad-te==0.1.0
+  te: base-pmad-te-ncb==0.1.0
 
 # ============================================================
 # Tuning Parameters

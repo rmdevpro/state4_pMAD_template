@@ -29,24 +29,39 @@ _log = logging.getLogger("pmad_template.routes.chat")
 router = APIRouter()
 
 
+_graph_cache: dict = {}
+
+
 def _get_stategraph(model_name: str):
     """Look up and return the compiled stategraph for the given model name.
 
-    Returns None if the model is not registered.
+    Caches compiled graphs. Returns None if the model is not registered.
     """
+    if model_name in _graph_cache:
+        return _graph_cache[model_name]
+
     from app.package_registry import get_imperator_builder, get_build_func
 
     # Check eMAD instances first (DB-registered)
     build_func = get_build_func(model_name)
     if build_func is not None:
-        return build_func({})
+        graph = build_func({})
+        _graph_cache[model_name] = graph
+        return graph
 
     # Check if this is the host Imperator
     builder = get_imperator_builder()
     if builder is not None:
-        return builder()
+        graph = builder()
+        _graph_cache[model_name] = graph
+        return graph
 
     return None
+
+
+def invalidate_graph_cache() -> None:
+    """Clear cached graphs. Called after package install."""
+    _graph_cache.clear()
 
 
 @router.post("/v1/chat/completions", response_model=None)
