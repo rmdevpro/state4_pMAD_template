@@ -112,18 +112,29 @@ async def chat_completions(request: Request):
 
     _log.info("Routing model=%s", model)
 
-    # Forward the full payload to the stategraph
+    # Resolve conversation_id for the checkpointer's thread_id.
+    # The router extracts this from the payload but doesn't interpret it —
+    # the stategraph's init_node handles "new" and default logic.
+    conv_id = body.get("conversation_id") or ""
+    if conv_id == "new":
+        import uuid as _uuid
+        conv_id = str(_uuid.uuid4())
+    elif not conv_id:
+        # Let the stategraph handle default thread resolution
+        conv_id = f"default-{model}"
+
     initial_state = {"payload": body}
+    graph_config = {"configurable": {"thread_id": conv_id}}
 
     try:
         if chat_request.stream:
             return StreamingResponse(
-                _stream_response(graph, initial_state, model),
+                _stream_response(graph, initial_state, model, graph_config),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
         else:
-            result = await graph.ainvoke(initial_state)
+            result = await graph.ainvoke(initial_state, config=graph_config)
 
             if result.get("error"):
                 _log.error("Stategraph error for model=%s: %s", model, result["error"])
@@ -138,7 +149,7 @@ async def chat_completions(request: Request):
                 )
 
             response_text = result.get("response_text", "")
-            conversation_id = result.get("conversation_id")
+            conversation_id = result.get("conversation_id") or conv_id
 
             return JSONResponse(
                 content=_build_completion_response(
@@ -163,6 +174,7 @@ async def _stream_response(
     graph,
     initial_state: dict,
     model: str,
+    graph_config: dict | None = None,
 ) -> AsyncGenerator[str, None]:
     """Stream stategraph response as SSE tokens.
 
@@ -174,7 +186,9 @@ async def _stream_response(
     yielded_any = False
 
     try:
-        async for event in graph.astream_events(initial_state, version="v2"):
+        async for event in graph.astream_events(
+            initial_state, version="v2", config=graph_config
+        ):
             kind = event["event"]
             if kind == "on_chat_model_stream":
                 chunk_data = event["data"].get("chunk")
