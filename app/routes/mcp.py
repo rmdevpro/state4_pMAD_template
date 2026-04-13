@@ -366,20 +366,12 @@ async def mcp_tool_call(
 
 
 def _get_tool_list() -> list[dict]:
-    """Return the MCP tool list with schemas."""
-    return [
-        {
-            "name": "imperator_chat",
-            "description": "Conversational interface to the Imperator",
-            "inputSchema": {
-                "type": "object",
-                "required": ["message"],
-                "properties": {
-                    "message": {"type": "string"},
-                    "context_window_id": {"type": "string", "format": "uuid"},
-                },
-            },
-        },
+    """Return the MCP tool list with schemas.
+
+    Includes infrastructure tools (metrics, install) plus all AE tools
+    from the tool registry.
+    """
+    tools = [
         {
             "name": "metrics_get",
             "description": "Retrieve Prometheus metrics",
@@ -389,15 +381,15 @@ def _get_tool_list() -> list[dict]:
             },
         },
         {
-            "name": "install_stategraph",
-            "description": "Install or upgrade a StateGraph package at runtime without container restart (REQ-001 §10)",
+            "name": "install_package",
+            "description": "Install or upgrade a package at runtime without container restart",
             "inputSchema": {
                 "type": "object",
                 "required": ["package_name"],
                 "properties": {
                     "package_name": {
                         "type": "string",
-                        "description": "Python package name (e.g., 'pmad-template-te', 'pmad-template-ae')",
+                        "description": "Python package name (e.g., 'base-pmad-te-ncb')",
                     },
                     "version": {
                         "type": "string",
@@ -407,3 +399,26 @@ def _get_tool_list() -> list[dict]:
             },
         },
     ]
+
+    # Add all AE tools from the registry
+    from app.tools import TOOL_REGISTRY
+
+    for tool_name, tool_fn in TOOL_REGISTRY.items():
+        schema = {
+            "name": tool_name,
+            "description": tool_fn.description or tool_name,
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+            },
+        }
+        # Extract schema from the tool's args_schema if available
+        if hasattr(tool_fn, "args_schema") and tool_fn.args_schema is not None:
+            try:
+                json_schema = tool_fn.args_schema.model_json_schema()
+                schema["inputSchema"] = json_schema
+            except (AttributeError, TypeError):
+                pass
+        tools.append(schema)
+
+    return tools
