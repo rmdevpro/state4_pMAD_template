@@ -53,6 +53,7 @@ services:
     volumes:
       - ./config-test:/config
       - ./data-test:/data
+      - ./emads:/emads:ro
     env_file:
       - ./config/credentials/.env
     environment:

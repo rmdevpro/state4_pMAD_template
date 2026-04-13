@@ -26,6 +26,18 @@ packages:
   te: base-pmad-te-ncb==0.1.0
 
 # ============================================================
+# Embeddings (for domain information semantic search)
+# ============================================================
+
+embeddings:
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-embedding-001
+  embedding_dims: 768
+  api_key_env: GOOGLE_API_KEY
+  tiktoken_enabled: false
+  check_embedding_ctx_length: false
+
+# ============================================================
 # Tuning Parameters
 # ============================================================
 
