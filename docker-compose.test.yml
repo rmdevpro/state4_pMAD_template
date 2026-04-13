@@ -2,17 +2,17 @@
 # Runs alongside the production stack with no conflicts.
 #
 # IMPORTANT: Always use --project-name to avoid collision with production:
-#   docker compose -p claude-test -f docker-compose.claude-test.yml up -d --build
-#   docker compose -p claude-test -f docker-compose.claude-test.yml down -v
+#   docker compose -p pmad-test -f docker-compose.test.yml up -d --build
+#   docker compose -p pmad-test -f docker-compose.test.yml down -v
 #
-# The -p flag gives all containers a claude-test- prefix and creates
+# The -p flag gives all containers a pmad-test- prefix and creates
 # a separate project namespace. Internal hostnames stay the same
 # (pmad-template-postgres, etc.) for DNS resolution within the
-# isolated claude-test-net bridge network.
+# isolated pmad-test-net bridge network.
 #
 # Differences from production:
-#   - Project name: claude-test (vs contextbroker)
-#   - Network: claude-test-net (isolated from pmad-template-net)
+#   - Project name: pmad-test (vs contextbroker)
+#   - Network: pmad-test-net (isolated from pmad-template-net)
 #   - Gateway port: 8081 (production is 8080)
 #   - Data: ./data-test/ (separate from ./data/)
 #   - Config: ./config-test/ (nominal models baked in)
@@ -21,14 +21,14 @@
 
 services:
 
-  claude-test-broker:
+  pmad-test-broker:
     image: nginx:1.28.0-alpine
-    container_name: claude-test-broker
+    container_name: pmad-test-broker
     hostname: pmad-template
     restart: unless-stopped
     networks:
       - default
-      - claude-test-net
+      - pmad-test-net
     ports:
       - "8081:8080"
     volumes:
@@ -45,11 +45,11 @@ services:
       context: .
       dockerfile: Dockerfile
     image: pmad-template-langgraph:latest
-    container_name: claude-test-langgraph
+    container_name: pmad-test-langgraph
     hostname: pmad-template-langgraph
     restart: unless-stopped
     networks:
-      - claude-test-net
+      - pmad-test-net
     volumes:
       - ./config-test:/config
       - ./data-test:/data
@@ -72,11 +72,11 @@ services:
 
   pmad-template-postgres:
     image: pgvector/pgvector:pg16
-    container_name: claude-test-postgres
+    container_name: pmad-test-postgres
     hostname: pmad-template-postgres
     restart: unless-stopped
     networks:
-      - claude-test-net
+      - pmad-test-net
     volumes:
       - ./data-test/postgres:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -94,11 +94,11 @@ services:
 
   pmad-template-neo4j:
     image: neo4j:5.26.0
-    container_name: claude-test-neo4j
+    container_name: pmad-test-neo4j
     hostname: pmad-template-neo4j
     restart: unless-stopped
     networks:
-      - claude-test-net
+      - pmad-test-net
     volumes:
       - ./data-test/neo4j:/data
     environment:
@@ -116,7 +116,7 @@ services:
 
   pmad-template-infinity:
     image: michaelf34/infinity:0.0.77
-    container_name: claude-test-infinity
+    container_name: pmad-test-infinity
     hostname: pmad-template-infinity
     restart: unless-stopped
     command: >
@@ -126,7 +126,7 @@ services:
       --engine torch
       --port 7997
     networks:
-      - claude-test-net
+      - pmad-test-net
     volumes:
       - ./data-test/infinity:/app/.cache
     deploy:
@@ -142,14 +142,14 @@ services:
       timeout: 3s
       retries: 3
 
-  claude-test-log-shipper:
+  pmad-test-log-shipper:
     build:
       context: ./log_shipper
-    container_name: claude-test-log-shipper
+    container_name: pmad-test-log-shipper
     hostname: pmad-template-log-shipper
     restart: unless-stopped
     networks:
-      - claude-test-net
+      - pmad-test-net
     # Grant docker socket access via group_add — matches host docker GID.
     # Override DOCKER_GID in .env if host docker group is not GID 125.
     group_add:
@@ -164,11 +164,11 @@ services:
   pmad-template-alerter:
     build:
       context: ./alerter
-    container_name: claude-test-alerter
+    container_name: pmad-test-alerter
     hostname: pmad-template-alerter
     restart: unless-stopped
     networks:
-      - claude-test-net
+      - pmad-test-net
     environment:
       - POSTGRES_DSN=postgresql://pmad_template:${POSTGRES_PASSWORD:-contextbroker123}@pmad-template-postgres:5432/pmad_template
       - ALERTER_CONFIG=/config/alerter.yml
@@ -178,5 +178,5 @@ services:
       - ./config-test:/config:ro
 
 networks:
-  claude-test-net:
+  pmad-test-net:
     driver: bridge
