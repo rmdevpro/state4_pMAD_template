@@ -2,10 +2,11 @@
 # State 4 MAD: standalone deployment, all dependencies configurable
 #
 # Usage:
-#   docker compose up -d
+#   1. Copy config/credentials/.env.example to config/credentials/.env
+#   2. Fill in credentials
+#   3. docker compose up -d --build
 #
-# Customize host paths, ports, and resource limits via docker-compose.override.yml
-# Do not modify this file directly.
+# All configuration is in .env — no override file needed.
 
 services:
 
