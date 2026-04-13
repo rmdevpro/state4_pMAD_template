@@ -126,6 +126,43 @@ async def lifespan(application: FastAPI):
         application.state.postgres_available = False
         pg_retry_task = asyncio.create_task(_postgres_retry_loop(application, config))
 
+    # Initialize AsyncPostgresSaver checkpointer for conversation persistence
+    if getattr(application.state, "postgres_available", False):
+        try:
+            import os
+            from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+            from app.checkpointer import set_checkpointer
+
+            pg_host = os.environ.get("POSTGRES_HOST", "pmad-template-postgres")
+            pg_port = os.environ.get("POSTGRES_PORT", "5432")
+            pg_db = os.environ.get("POSTGRES_DB", "emad_host")
+            pg_user = os.environ.get("POSTGRES_USER", "emad_host")
+            pg_pass = os.environ.get("POSTGRES_PASSWORD", "")
+            dsn = f"postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}"
+
+            # Create pool directly — same pattern as the working minimal test
+            from psycopg_pool import AsyncConnectionPool
+
+            from psycopg.rows import dict_row
+
+            cp_pool = AsyncConnectionPool(
+                conninfo=dsn,
+                open=False,
+                kwargs={
+                    "autocommit": True,
+                    "row_factory": dict_row,
+                    "prepare_threshold": 0,
+                },
+            )
+            await cp_pool.open()
+            checkpointer = AsyncPostgresSaver(cp_pool)
+            await checkpointer.setup()
+            set_checkpointer(checkpointer)
+            application.state.checkpointer_pool = cp_pool
+            _log.info("AsyncPostgresSaver checkpointer initialized")
+        except (OSError, RuntimeError, ImportError) as exc:
+            _log.warning("Failed to initialize checkpointer: %s", exc)
+
     # Initialize Imperator persistent state
     imperator_manager = ImperatorStateManager(config)
     application.state.imperator_manager = imperator_manager
@@ -193,6 +230,14 @@ async def lifespan(application: FastAPI):
             await t
         except asyncio.CancelledError:
             pass
+    # Close checkpointer pool
+    cp_pool = getattr(application.state, "checkpointer_pool", None)
+    if cp_pool is not None:
+        try:
+            await cp_pool.close()
+        except (OSError, RuntimeError) as exc:
+            _log.warning("Failed to close checkpointer pool: %s", exc)
+
     await close_all_connections()
     _log.info("pMAD shutdown complete")
 

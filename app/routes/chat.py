@@ -32,38 +32,53 @@ router = APIRouter()
 _graph_cache: dict = {}
 
 
-def _get_stategraph(model_name: str):
-    """Look up and return the compiled stategraph for the given model name.
+async def _get_stategraph(model_name: str):
+    """Look up and return a compiled stategraph for the given model name.
 
-    Caches compiled graphs. Returns None if the model is not registered.
+    Compiles a fresh graph each invocation so the checkpointer can
+    properly load/save conversation state between calls.
 
     Lookup order:
-    1. eMAD directory (/emads/{model_name}/config.json exists) → runbook-emad-te
-    2. Host Imperator (fallback for any model name when TE is loaded)
+    1. Host Imperator (model name "host")
+    2. Routing table in DB (emad_instances -> package_name -> build_graph)
     """
-    if model_name in _graph_cache:
-        return _graph_cache[model_name]
-
-    import os
-
     from app.package_registry import get_imperator_builder, get_build_func
 
-    # Check if this model has an eMAD config directory
-    emad_config_path = f"/emads/{model_name}/config.json"
-    if os.path.isfile(emad_config_path):
-        build_func = get_build_func("runbook-emad-te")
+    # Host Imperator
+    if model_name == "host":
+        builder = get_imperator_builder()
+        if builder is not None:
+            return builder()
+        return None
+
+    # eMAD routing table — look up package name from DB
+    try:
+        from app.database import get_pg_pool
+
+        pool = get_pg_pool()
+        row = await pool.fetchrow(
+            "SELECT package_name FROM emad_instances WHERE emad_name = $1 AND status = 'active'",
+            model_name,
+        )
+        if row is None:
+            return None
+
+        package_name = row["package_name"]
+        build_func = get_build_func(package_name)
+        if build_func is None:
+            # Lazy-load: package is installed but not yet in the registry
+            from app.package_registry import load_emad
+            try:
+                load_emad(package_name)
+                build_func = get_build_func(package_name)
+            except (ImportError, AttributeError) as exc:
+                _log.warning("Failed to load eMAD package '%s': %s", package_name, exc)
         if build_func is not None:
             graph = build_func({})
             _graph_cache[model_name] = graph
             return graph
-
-    # Host Imperator — only for the "host" model name
-    if model_name == "host":
-        builder = get_imperator_builder()
-        if builder is not None:
-            graph = builder()
-            _graph_cache[model_name] = graph
-            return graph
+    except (RuntimeError, OSError) as exc:
+        _log.warning("Failed to look up eMAD '%s': %s", model_name, exc)
 
     return None
 
@@ -107,7 +122,7 @@ async def chat_completions(request: Request):
     model = chat_request.model
 
     # Look up stategraph for this model name
-    graph = _get_stategraph(model)
+    graph = await _get_stategraph(model)
     if graph is None:
         return JSONResponse(
             status_code=404,
@@ -121,29 +136,19 @@ async def chat_completions(request: Request):
 
     _log.info("Routing model=%s", model)
 
-    # Resolve conversation_id for the checkpointer's thread_id.
-    # The router extracts this from the payload but doesn't interpret it —
-    # the stategraph's init_node handles "new" and default logic.
-    conv_id = body.get("conversation_id") or ""
-    if conv_id == "new":
-        import uuid as _uuid
-        conv_id = str(_uuid.uuid4())
-    elif not conv_id:
-        # Let the stategraph handle default thread resolution
-        conv_id = f"default-{model}"
-
+    # The outer graph handles conversation_id resolution internally.
+    # The router just forwards the payload.
     initial_state = {"payload": body}
-    graph_config = {"configurable": {"thread_id": conv_id}}
 
     try:
         if chat_request.stream:
             return StreamingResponse(
-                _stream_response(graph, initial_state, model, graph_config),
+                _stream_response(graph, initial_state, model),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
         else:
-            result = await graph.ainvoke(initial_state, config=graph_config)
+            result = await graph.ainvoke(initial_state)
 
             if result.get("error"):
                 _log.error("Stategraph error for model=%s: %s", model, result["error"])
@@ -158,7 +163,7 @@ async def chat_completions(request: Request):
                 )
 
             response_text = result.get("response_text", "")
-            conversation_id = result.get("conversation_id") or conv_id
+            conversation_id = result.get("conversation_id")
 
             return JSONResponse(
                 content=_build_completion_response(
@@ -183,7 +188,6 @@ async def _stream_response(
     graph,
     initial_state: dict,
     model: str,
-    graph_config: dict | None = None,
 ) -> AsyncGenerator[str, None]:
     """Stream stategraph response as SSE tokens.
 
@@ -196,7 +200,7 @@ async def _stream_response(
 
     try:
         async for event in graph.astream_events(
-            initial_state, version="v2", config=graph_config
+            initial_state, version="v2",
         ):
             kind = event["event"]
             if kind == "on_chat_model_stream":
