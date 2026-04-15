@@ -8,7 +8,7 @@ everything.
 
 Contract with stategraphs:
   Input:  full OpenAI request body (dict) as initial state under "payload" key
-  Output: {"response_text": str, "conversation_id": str | None}
+  Output: {"final_response": str, "conversation_id": str | None}
   Streaming: astream_events emits on_chat_model_stream events
 """
 
@@ -171,7 +171,7 @@ async def chat_completions(request: Request):
                     },
                 )
 
-            response_text = result.get("response_text", "")
+            response_text = result.get("final_response", "") or result.get("response_text", "")
             conversation_id = result.get("conversation_id")
 
             return JSONResponse(
