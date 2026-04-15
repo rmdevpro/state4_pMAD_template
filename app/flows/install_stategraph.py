@@ -110,10 +110,12 @@ async def install_stategraph(
         except (ImportError, AttributeError):
             _log.warning("Package '%s' loaded but not recognized as AE, TE, or eMAD", package_name)
 
-    # Clear compiled graph caches so next use picks up new code
+    # Clear ALL compiled graph caches so next use picks up new code
     from app.flows.build_type_registry import clear_compiled_cache
+    from app.routes.chat import invalidate_graph_cache
 
     clear_compiled_cache()
+    invalidate_graph_cache()
 
     # Record in database (best-effort)
     await _record_package_install(package_name, version or "latest")

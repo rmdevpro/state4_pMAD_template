@@ -1,21 +1,21 @@
 """KernelTEContext — concrete TEContext implementation for the kernel.
 
-Provides tools, checkpointer, config, and inference to TE packages
-via dependency injection. TE packages receive this in build_graph()
-and use it instead of importing from app.* directly.
+Provides tools, checkpointer, config, inference, database, logging,
+and metrics to TE packages via dependency injection.
 
 ERQ-002 §12.3: TE packages must not import from app.*.
+ERQ-002 §13.2: AE provides base contract surface.
 """
 
 import logging
 import os
 from typing import Any
 
-_log = logging.getLogger("pmad_template.te_context")
-
 
 class KernelTEContext:
     """Concrete TEContext that bridges TE packages to the kernel's services."""
+
+    # ── Tools ────────────────────────────────────────────────────
 
     def get_tools_for_model(self, model_name: str, tool_names: list[str]) -> list:
         from app.tools import get_tools_for_model
@@ -25,9 +25,13 @@ class KernelTEContext:
         from app.tools import get_tool_registry
         return get_tool_registry()
 
+    # ── Checkpointer ─────────────────────────────────────────────
+
     def get_checkpointer(self) -> Any:
         from app.checkpointer import get_checkpointer
         return get_checkpointer()
+
+    # ── Inference ────────────────────────────────────────────────
 
     def get_api_key(self, llm_config: dict) -> str | None:
         api_key_env = llm_config.get("api_key_env", "")
@@ -50,6 +54,25 @@ class KernelTEContext:
             kwargs["temperature"] = temp
         return ChatOpenAI(**kwargs)
 
+    # ── Configuration ────────────────────────────────────────────
+
     def load_config(self) -> dict:
         from app.config import load_merged_config
         return load_merged_config()
+
+    # ── Database ─────────────────────────────────────────────────
+
+    def get_db_pool(self) -> Any:
+        from app.database import get_pg_pool
+        return get_pg_pool()
+
+    # ── Logging ──────────────────────────────────────────────────
+
+    def get_logger(self, name: str) -> Any:
+        return logging.getLogger(name)
+
+    # ── Metrics ──────────────────────────────────────────────────
+
+    def get_metrics_registry(self) -> Any:
+        from prometheus_client import REGISTRY
+        return REGISTRY
