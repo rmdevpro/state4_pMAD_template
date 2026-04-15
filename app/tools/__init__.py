@@ -80,4 +80,16 @@ class _LazyRegistry(dict):
 
 
 TOOL_REGISTRY = _LazyRegistry()
-ADMIN_TOOLS = property(lambda self: get_admin_tools())
+
+
+class _LazyAdminTools(set):
+    """Set that delegates to the AE registration on every access."""
+    def __contains__(self, key):
+        return key in get_admin_tools()
+    def __iter__(self):
+        return iter(get_admin_tools())
+    def __len__(self):
+        return len(get_admin_tools())
+
+
+ADMIN_TOOLS = _LazyAdminTools()

@@ -150,12 +150,11 @@ build_types:
 # has no effect — the container must be rebuilt.
 
 packages:
-  source: local
+  source: pypi
   local_path: /app/packages
   devpi_url: null
-  stategraph_packages:             # REQ-001 §10: packages installed at startup
-    - pmad-template-ae
-    - pmad-template-te
+  ae: base-pmad-ae==0.2.0           # AE package — tools, routing, infrastructure
+  te: base-pmad-te-ncb==0.2.0       # TE package — Imperator thought engine
 
 # ============================================================
 # Tuning Parameters (AE pipeline behavior)
