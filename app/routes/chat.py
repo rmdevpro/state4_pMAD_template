@@ -35,20 +35,30 @@ _graph_cache: dict = {}
 async def _get_stategraph(model_name: str):
     """Look up and return a compiled stategraph for the given model name.
 
-    Compiles a fresh graph each invocation so the checkpointer can
-    properly load/save conversation state between calls.
+    Graphs are cached after first build. The subgraph pattern means the
+    outer graph is stateless and the inner graph uses thread_id config
+    for checkpointer state, so caching is safe.
 
     Lookup order:
-    1. Host Imperator (model name "host")
-    2. Routing table in DB (emad_instances -> package_name -> build_graph)
+    1. Cache hit
+    2. Host Imperator (model name "host")
+    3. Routing table in DB (emad_instances → package_name → build_graph)
     """
+    if model_name in _graph_cache:
+        return _graph_cache[model_name]
+
     from app.package_registry import get_imperator_builder, get_build_func
+    from app.te_context import KernelTEContext
+
+    _context = KernelTEContext()
 
     # Host Imperator
     if model_name == "host":
         builder = get_imperator_builder()
         if builder is not None:
-            return builder()
+            graph = builder()
+            _graph_cache[model_name] = graph
+            return graph
         return None
 
     # eMAD routing table — look up package name from DB
@@ -66,7 +76,6 @@ async def _get_stategraph(model_name: str):
         package_name = row["package_name"]
         build_func = get_build_func(package_name)
         if build_func is None:
-            # Lazy-load: package is installed but not yet in the registry
             from app.package_registry import load_emad
             try:
                 load_emad(package_name)
@@ -74,7 +83,7 @@ async def _get_stategraph(model_name: str):
             except (ImportError, AttributeError) as exc:
                 _log.warning("Failed to load eMAD package '%s': %s", package_name, exc)
         if build_func is not None:
-            graph = build_func({})
+            graph = build_func(_context)
             _graph_cache[model_name] = graph
             return graph
     except (RuntimeError, OSError) as exc:

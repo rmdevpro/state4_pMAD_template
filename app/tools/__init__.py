@@ -1,96 +1,83 @@
-"""AE Tool Registry — maps tool names to callables.
+"""AE Tool Registry — proxy to the loaded AE package.
 
-All tools are AE-owned. TEs call them via MCP. Each TE's config
-specifies which tools it can use.
+The kernel does not own tools. Tools are defined in the AE package
+(e.g., base-pmad-ae) and registered via the AE's register() function.
+This module provides backward-compatible access to the AE's tool
+registry for code that imports from app.tools.
+
+The actual tool implementations live in the AE pip package, NOT here.
 """
 
-from app.tools.admin import (
-    config_read,
-    config_write,
-    change_inference,
-    db_query,
-    verbose_toggle,
-)
-from app.tools.alerting import (
-    add_alert_instruction,
-    delete_alert_instruction,
-    list_alert_instructions,
-    update_alert_instruction,
-)
-from app.tools.diagnostic import log_query
-from app.tools.filesystem import (
-    file_list,
-    file_read,
-    file_search,
-    file_write,
-    read_system_prompt,
-    update_system_prompt,
-)
-from app.tools.notify import send_notification
-from app.tools.operational import search_domain_info, store_domain_info
-from app.tools.system import run_command
-from app.tools.web import web_read, web_search
-from app.tools.emad_management import manage_emad
+import logging
 
-# Master registry: tool_name -> tool callable
-TOOL_REGISTRY: dict = {
-    # Admin (host Imperator only)
-    "config_read": config_read,
-    "config_write": config_write,
-    "change_inference": change_inference,
-    "db_query": db_query,
-    "verbose_toggle": verbose_toggle,
-    "read_system_prompt": read_system_prompt,
-    "update_system_prompt": update_system_prompt,
-    # Alerting
-    "add_alert_instruction": add_alert_instruction,
-    "list_alert_instructions": list_alert_instructions,
-    "update_alert_instruction": update_alert_instruction,
-    "delete_alert_instruction": delete_alert_instruction,
-    # Diagnostic
-    "log_query": log_query,
-    # Filesystem
-    "file_read": file_read,
-    "file_list": file_list,
-    "file_search": file_search,
-    "file_write": file_write,
-    # Notify
-    "send_notification": send_notification,
-    # Domain info
-    "store_domain_info": store_domain_info,
-    "search_domain_info": search_domain_info,
-    # System
-    "run_command": run_command,
-    # Web
-    "web_search": web_search,
-    "web_read": web_read,
-    # eMAD management (host Imperator only)
-    "manage_emad": manage_emad,
-}
+_log = logging.getLogger("pmad_template.tools")
 
-# Tools restricted to the host Imperator (model: "host")
-ADMIN_TOOLS = {
-    "config_read",
-    "config_write",
-    "change_inference",
-    "db_query",
-    "verbose_toggle",
-    "read_system_prompt",
-    "update_system_prompt",
-    "manage_emad",
-}
+
+def _get_ae_registration() -> dict:
+    """Get the current AE registration from the package registry."""
+    from app.package_registry import get_ae_registration
+    reg = get_ae_registration()
+    if reg is None:
+        _log.warning("No AE package loaded — tool registry is empty")
+        return {}
+    return reg
+
+
+def get_tool_registry() -> dict:
+    """Return the TOOL_REGISTRY dict from the loaded AE package."""
+    return _get_ae_registration().get("tools", {})
+
+
+def get_admin_tools() -> set:
+    """Return the ADMIN_TOOLS set from the loaded AE package."""
+    return _get_ae_registration().get("admin_tools", set())
 
 
 def get_tools_for_model(model_name: str, tool_names: list[str]) -> list:
     """Return tool callables for the given model, filtered by allowed names.
 
-    Admin tools are only returned if model_name is "host".
+    Delegates to the AE's get_tools_for_model if available,
+    otherwise falls back to local filtering.
     """
+    reg = _get_ae_registration()
+    ae_get_tools = reg.get("get_tools_for_model")
+    if ae_get_tools is not None:
+        return ae_get_tools(model_name, tool_names)
+
+    # Fallback: local filtering
+    registry = reg.get("tools", {})
+    admin = reg.get("admin_tools", set())
     tools = []
     for name in tool_names:
-        if name in ADMIN_TOOLS and model_name != "host":
+        if name in admin and model_name != "host":
             continue
-        tool_fn = TOOL_REGISTRY.get(name)
+        tool_fn = registry.get(name)
         if tool_fn is not None:
             tools.append(tool_fn)
     return tools
+
+
+# Backward compatibility — these read from the AE at access time
+# so they reflect whatever AE is currently loaded (supports hot-swap).
+class _LazyRegistry(dict):
+    """Dict that delegates to the AE registration on every access."""
+    def __getitem__(self, key):
+        return get_tool_registry()[key]
+    def __contains__(self, key):
+        return key in get_tool_registry()
+    def __iter__(self):
+        return iter(get_tool_registry())
+    def __len__(self):
+        return len(get_tool_registry())
+    def keys(self):
+        return get_tool_registry().keys()
+    def values(self):
+        return get_tool_registry().values()
+    def items(self):
+        return get_tool_registry().items()
+    def get(self, key, default=None):
+        return get_tool_registry().get(key, default)
+
+
+TOOL_REGISTRY = _LazyRegistry()
+ADMIN_TOOLS = property(lambda self: get_admin_tools())

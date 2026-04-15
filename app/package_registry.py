@@ -249,6 +249,11 @@ def scan_from_config(config: dict) -> dict:
 # ── Public accessors ────────────────────────────────────────────────
 
 
+def get_ae_registration() -> dict | None:
+    """Return the full AE registration dict, or None if no AE loaded."""
+    return _ae_registration
+
+
 def get_imperator_builder() -> Callable | None:
     """Return the registered Imperator flow builder, or None."""
     return _imperator_builder
