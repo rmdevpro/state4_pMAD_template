@@ -50,9 +50,8 @@ packages:
   devpi_url: null
   local_path: /app/packages
   source: local
-  stategraph_packages:
-  - pmad-template-ae
-  - pmad-template-te
+  ae: base-pmad-ae
+  te: base-pmad-te-ncb
 reranker:
   base_url: http://pmad-template-infinity:7997
   model: mixedbread-ai/mxbai-rerank-xsmall-v1

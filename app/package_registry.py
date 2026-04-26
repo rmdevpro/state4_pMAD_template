@@ -28,6 +28,7 @@ _imperator_builder: Callable | None = None
 _flow_builders: dict[str, Callable] = {}
 _emad_build_funcs: dict[str, Callable] = {}
 _package_metadata: dict[str, dict] = {}
+_dispatcher: object | None = None
 
 
 def _to_module_name(package_name: str) -> str:
@@ -82,6 +83,7 @@ def load_ae(package_name: str) -> None:
         registration = register_fn()
 
         with _lock:
+            global _dispatcher
             _ae_registration = registration
 
             if "build_types" in registration:
@@ -94,6 +96,10 @@ def load_ae(package_name: str) -> None:
 
             if "flows" in registration:
                 _flow_builders.update(registration["flows"])
+
+            if "dispatcher_class" in registration:
+                from app.te_context import KernelTEContext
+                _dispatcher = registration["dispatcher_class"](KernelTEContext())
 
             _package_metadata[package_name] = {
                 "version": _get_package_version(package_name),
@@ -129,10 +135,8 @@ def load_te(package_name: str) -> None:
         # Inject KernelTEContext before flow compilation
         init_fn = registration.get("initialize")
         if init_fn is not None:
-            # Import KernelTEContext from the TE package itself
-            kernel_ctx_module = importlib.import_module(f"{module_name}._kernel_ctx")
-            ctx_class = getattr(kernel_ctx_module, "KernelTEContext")
-            init_fn(ctx_class())
+            from app.te_context import KernelTEContext
+            init_fn(KernelTEContext())
             _log.info("Injected KernelTEContext into TE package: %s", package_name)
 
         with _lock:
@@ -273,6 +277,20 @@ def get_package_metadata() -> dict[str, dict]:
     """Return metadata for all registered packages."""
     with _lock:
         return dict(_package_metadata)
+
+
+def get_dispatcher() -> object | None:
+    """Return the AE GraphDispatcher instance, or None if not loaded."""
+    return _dispatcher
+
+
+def invalidate_graph_cache() -> None:
+    """Clear cached graphs. Called after package install."""
+    try:
+        from base_pmad_ae.dispatcher import invalidate_cache
+        invalidate_cache()
+    except ImportError:
+        pass
 
 
 def is_loaded() -> bool:

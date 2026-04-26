@@ -1,10 +1,13 @@
 """
-OpenAI-compatible chat completions endpoint — dumb router.
+OpenAI-compatible chat completions endpoint — HTTP receiver only.
 
-Reads the model field from the OpenAI payload, looks up the stategraph
-in the routing table, and forwards the full payload. Does not extract
-messages, build state, or inject parameters. The stategraph handles
-everything.
+Receives the request, hands {"payload": body} to the AE dispatcher to get
+the correct TE graph, then streams or invokes that graph directly.
+
+No routing logic here (ERQ-002 §2) — all routing is owned by the AE's
+GraphDispatcher. The route handler streams directly from the TE graph because
+LangGraph does not propagate astream_events() through dynamic ainvoke() calls
+between separately compiled graphs. See base_pmad_ae/dispatcher.py for details.
 
 Contract with stategraphs:
   Input:  full OpenAI request body (dict) as initial state under "payload" key
@@ -29,89 +32,16 @@ _log = logging.getLogger("pmad_template.routes.chat")
 router = APIRouter()
 
 
-_graph_cache: dict = {}
-
-
-async def _get_stategraph(model_name: str):
-    """Look up and return a compiled stategraph for the given model name.
-
-    Graphs are cached after first build. The subgraph pattern means the
-    outer graph is stateless and the inner graph uses thread_id config
-    for checkpointer state, so caching is safe.
-
-    Lookup order:
-    1. Cache hit
-    2. Host Imperator (model name "host")
-    3. Routing table in DB (emad_instances → package_name → build_graph)
-    """
-    if model_name in _graph_cache:
-        return _graph_cache[model_name]
-
-    from app.package_registry import get_imperator_builder, get_build_func
-    from app.te_context import KernelTEContext
-
-    _context = KernelTEContext()
-
-    # Host Imperator
-    if model_name == "host":
-        builder = get_imperator_builder()
-        if builder is not None:
-            graph = builder()
-            _graph_cache[model_name] = graph
-            return graph
-        return None
-
-    # eMAD routing table — look up package name from DB
-    try:
-        from app.database import get_pg_pool
-
-        pool = get_pg_pool()
-        row = await pool.fetchrow(
-            "SELECT package_name FROM emad_instances WHERE emad_name = $1 AND status = 'active'",
-            model_name,
-        )
-        if row is None:
-            return None
-
-        package_name = row["package_name"]
-        build_func = get_build_func(package_name)
-        if build_func is None:
-            from app.package_registry import load_emad
-            try:
-                load_emad(package_name)
-                build_func = get_build_func(package_name)
-            except (ImportError, AttributeError) as exc:
-                _log.warning("Failed to load eMAD package '%s': %s", package_name, exc)
-        if build_func is not None:
-            graph = build_func(_context)
-            _graph_cache[model_name] = graph
-            return graph
-    except (RuntimeError, OSError) as exc:
-        _log.warning("Failed to look up eMAD '%s': %s", model_name, exc)
-
-    return None
-
-
-def invalidate_graph_cache() -> None:
-    """Clear cached graphs. Called after package install."""
-    _graph_cache.clear()
-
-
 @router.post("/v1/chat/completions", response_model=None)
 async def chat_completions(request: Request):
-    """Route OpenAI-compatible chat requests to the appropriate stategraph.
-
-    Pure router — reads model, looks up stategraph, forwards full payload.
-    """
+    """Validate and dispatch chat requests via the AE dispatcher."""
     try:
         body = await request.json()
     except (ValueError, UnicodeDecodeError) as exc:
         _log.warning("Chat: failed to parse request body: %s", exc)
         return JSONResponse(
             status_code=400,
-            content={
-                "error": {"message": "Invalid JSON", "type": "invalid_request_error"}
-            },
+            content={"error": {"message": "Invalid JSON", "type": "invalid_request_error"}},
         )
 
     try:
@@ -120,33 +50,26 @@ async def chat_completions(request: Request):
         _log.warning("Chat: request validation failed: %s", exc)
         return JSONResponse(
             status_code=422,
-            content={
-                "error": {
-                    "message": str(exc),
-                    "type": "invalid_request_error",
-                }
-            },
+            content={"error": {"message": str(exc), "type": "invalid_request_error"}},
+        )
+
+    from app.package_registry import get_dispatcher
+    dispatcher = get_dispatcher()
+    if dispatcher is None:
+        return JSONResponse(
+            status_code=503,
+            content={"error": {"message": "AE not loaded", "type": "service_unavailable"}},
         )
 
     model = chat_request.model
-
-    # Look up stategraph for this model name
-    graph = await _get_stategraph(model)
+    graph = await dispatcher.get_graph(model)
     if graph is None:
         return JSONResponse(
             status_code=404,
-            content={
-                "error": {
-                    "message": f"Model not found: {model}",
-                    "type": "invalid_request_error",
-                }
-            },
+            content={"error": {"message": f"Model not found: {model}", "type": "invalid_request_error"}},
         )
 
     _log.info("Routing model=%s", model)
-
-    # The outer graph handles conversation_id resolution internally.
-    # The router just forwards the payload.
     initial_state = {"payload": body}
 
     try:
@@ -163,33 +86,18 @@ async def chat_completions(request: Request):
                 _log.error("Stategraph error for model=%s: %s", model, result["error"])
                 return JSONResponse(
                     status_code=500,
-                    content={
-                        "error": {
-                            "message": result["error"],
-                            "type": "internal_error",
-                        }
-                    },
+                    content={"error": {"message": result["error"], "type": "internal_error"}},
                 )
 
             response_text = result.get("final_response", "") or result.get("response_text", "")
             conversation_id = result.get("conversation_id")
-
-            return JSONResponse(
-                content=_build_completion_response(
-                    response_text, model, conversation_id
-                )
-            )
+            return JSONResponse(content=_build_completion_response(response_text, model, conversation_id))
 
     except (RuntimeError, ConnectionError, OSError) as exc:
         _log.error("Chat completion failed for model=%s: %s", model, exc, exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={
-                "error": {
-                    "message": "Internal server error",
-                    "type": "internal_error",
-                }
-            },
+            content={"error": {"message": "Internal server error", "type": "internal_error"}},
         )
 
 
@@ -198,19 +106,13 @@ async def _stream_response(
     initial_state: dict,
     model: str,
 ) -> AsyncGenerator[str, None]:
-    """Stream stategraph response as SSE tokens.
-
-    Uses astream_events(version="v2") to capture on_chat_model_stream
-    events from the stategraph's LLM calls.
-    """
+    """Stream stategraph response as SSE tokens."""
     completion_id = f"chatcmpl-{uuid.uuid4().hex}"
     created = int(time.time())
     yielded_any = False
 
     try:
-        async for event in graph.astream_events(
-            initial_state, version="v2",
-        ):
+        async for event in graph.astream_events(initial_state, version="v2"):
             kind = event["event"]
             if kind == "on_chat_model_stream":
                 chunk_data = event["data"].get("chunk")
@@ -223,20 +125,15 @@ async def _stream_response(
                 if not yielded_any:
                     delta["role"] = "assistant"
                     yielded_any = True
-                sse_chunk = json.dumps(
-                    {
-                        "id": completion_id,
-                        "object": "chat.completion.chunk",
-                        "created": created,
-                        "model": model,
-                        "choices": [
-                            {"index": 0, "delta": delta, "finish_reason": None}
-                        ],
-                    }
-                )
+                sse_chunk = json.dumps({
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": model,
+                    "choices": [{"index": 0, "delta": delta, "finish_reason": None}],
+                })
                 yield f"data: {sse_chunk}\n\n"
             elif kind == "on_chat_model_end":
-                # Fallback for stategraphs that disable streaming
                 if not yielded_any:
                     output_msg = event.get("data", {}).get("output")
                     if (
@@ -246,9 +143,7 @@ async def _stream_response(
                     ):
                         has_tool_calls = bool(
                             getattr(output_msg, "tool_calls", None)
-                            or getattr(output_msg, "additional_kwargs", {}).get(
-                                "tool_calls"
-                            )
+                            or getattr(output_msg, "additional_kwargs", {}).get("tool_calls")
                         )
                         if not has_tool_calls:
                             content = (
@@ -257,46 +152,32 @@ async def _stream_response(
                                 else str(output_msg.content)
                             )
                             delta = {"role": "assistant", "content": content}
-                            sse_chunk = json.dumps(
-                                {
-                                    "id": completion_id,
-                                    "object": "chat.completion.chunk",
-                                    "created": created,
-                                    "model": model,
-                                    "choices": [
-                                        {
-                                            "index": 0,
-                                            "delta": delta,
-                                            "finish_reason": None,
-                                        }
-                                    ],
-                                }
-                            )
+                            sse_chunk = json.dumps({
+                                "id": completion_id,
+                                "object": "chat.completion.chunk",
+                                "created": created,
+                                "model": model,
+                                "choices": [{"index": 0, "delta": delta, "finish_reason": None}],
+                            })
                             yield f"data: {sse_chunk}\n\n"
                             yielded_any = True
     except (RuntimeError, ValueError, TypeError, OSError) as exc:
         _log.error("Streaming error for model=%s: %s", model, exc)
 
-    # Final chunk
-    final = json.dumps(
-        {
-            "id": completion_id,
-            "object": "chat.completion.chunk",
-            "created": created,
-            "model": model,
-            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-        }
-    )
+    final = json.dumps({
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": model,
+        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+    })
     yield f"data: {final}\n\ndata: [DONE]\n\n"
 
 
 def _build_completion_response(
     response_text: str, model: str, conversation_id: str | None = None
 ) -> dict:
-    """Build an OpenAI-compatible non-streaming completion response.
-
-    Always includes conversation_id so clients can continue the conversation.
-    """
+    """Build an OpenAI-compatible non-streaming completion response."""
     response = {
         "id": f"chatcmpl-{uuid.uuid4().hex}",
         "object": "chat.completion",
@@ -305,18 +186,11 @@ def _build_completion_response(
         "choices": [
             {
                 "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": response_text,
-                },
+                "message": {"role": "assistant", "content": response_text},
                 "finish_reason": "stop",
             }
         ],
-        "usage": {
-            "prompt_tokens": -1,
-            "completion_tokens": -1,
-            "total_tokens": -1,
-        },
+        "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1},
     }
     if conversation_id:
         response["conversation_id"] = conversation_id

@@ -76,3 +76,9 @@ class KernelTEContext:
     def get_metrics_registry(self) -> Any:
         from prometheus_client import REGISTRY
         return REGISTRY
+
+    # ── Peer Proxy ───────────────────────────────────────────────
+
+    def get_peer_proxy(self) -> Any:
+        from app.peer_proxy import get_peer_proxy
+        return get_peer_proxy()

@@ -112,7 +112,7 @@ async def install_stategraph(
 
     # Clear ALL compiled graph caches so next use picks up new code
     from app.flows.build_type_registry import clear_compiled_cache
-    from app.routes.chat import invalidate_graph_cache
+    from app.package_registry import invalidate_graph_cache
 
     clear_compiled_cache()
     invalidate_graph_cache()

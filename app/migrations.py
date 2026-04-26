@@ -111,6 +111,24 @@ async def _migration_004(conn) -> None:
     _log.info("Migration 004 complete — domain_information table with auto-embedding trigger")
 
 
+async def _migration_005(conn) -> None:
+    """Migration 5: Create emad_instances table for eMAD routing.
+
+    Maps model names to their TE package and active status.
+    Used by the chat route to look up which package handles a given model name.
+    """
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS emad_instances (
+            emad_name     VARCHAR(255) PRIMARY KEY,
+            package_name  VARCHAR(255) NOT NULL,
+            status        VARCHAR(50)  NOT NULL DEFAULT 'active',
+            installed_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            metadata      JSONB
+        )
+    """)
+    _log.info("Migration 005 complete — emad_instances table")
+
+
 # Migration registry: version -> (description, migration_function)
 # Add new migrations here. Never modify existing entries.
 # IMPORTANT: This list MUST appear after all _migration_NNN function definitions.
@@ -130,6 +148,11 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
         4,
         "Create domain_information table with auto-embedding trigger",
         _migration_004,
+    ),
+    (
+        5,
+        "Create emad_instances table for eMAD routing",
+        _migration_005,
     ),
 ]
 
